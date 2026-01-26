@@ -44,6 +44,15 @@ async function buildDramaturgyPrompt(gameConfig, recentStoryEntries, askLLM) {
         }`;
     }
     
+    // GM Notes context
+    let gmNotesContext = '';
+    if (gameConfig.gmNotes && gameConfig.gmNotes.length > 0) {
+        const notes = gameConfig.gmNotes
+            .map(note => `- ${note.content}`)
+            .join('\n');
+        gmNotesContext = `\n## PELINJOHTAJAN HUOMIOT\n${notes}\n`;
+    }
+    
     const prompt = `## DRAMATURGICAL ANALYSIS
 
 You are a drama expert analyzing a LARP game.
@@ -57,6 +66,7 @@ ${gameConfig.themes.join(', ')}
 ## CURRENT PHASE
 ${gameConfig.currentPhase.name}: ${gameConfig.currentPhase.description}
 ${timeContext}
+${gmNotesContext}
 
 ## RECENT ACTIVITY
 ${recentHistory || 'No activity yet.'}
