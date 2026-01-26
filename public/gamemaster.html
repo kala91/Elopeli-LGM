@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Master Console</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; background: #111; color: #0f0; padding: 20px; margin: 0; }
+        h1 { font-size: 1.5rem; border-bottom: 2px solid #0f0; padding-bottom: 10px; margin-top: 0; }
+        h2 { font-size: 1.2rem; color: #0f0; margin-top: 30px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .btn { background: #0f0; color: #000; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        .btn:active { background: #0a0; }
+        .card { border: 1px solid #333; padding: 15px; margin-bottom: 15px; background: #000; }
+        .timestamp { color: #666; font-size: 0.8rem; }
+        textarea { background: #222; border: 1px solid #0f0; color: #fff; padding: 10px; width: 95%; font-family: inherit; min-height: 80px; }
+        label { display: block; margin-top: 15px; margin-bottom: 5px; color: #0f0; font-weight: bold; font-size: 0.9rem; }
+        .checkbox-label { display: inline-block; margin-left: 10px; font-weight: normal; }
+        #config-screen, #master-screen { display: none; }
+        .visible { display: block !important; }
+        .access-panel { background: #000; border: 2px solid #0f0; padding: 20px; margin-bottom: 30px; text-align: center; }
+        .access-url { font-size: 1.5rem; color: #0f0; font-weight: bold; background: #222; padding: 10px; margin: 10px 0; }
+        .qr-code { margin: 20px 0; }
+        .log-entry { border-left: 3px solid #0f0; padding-left: 10px; margin-bottom: 10px; }
+        .log-entry.player-action { border-left-color: #00f; color: #88f; }
+        .prompt-display { background: #1a1a1a; padding: 10px; font-size: 0.85rem; white-space: pre-wrap; max-height: 200px; overflow-y: auto; border: 1px solid #333; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <div id="config-screen" class="visible">
+        <div class="container">
+            <h1>🎮 GAME MASTER CONSOLE - KONFIGURAATIO</h1>
+            <p>Aseta pelimaailman ja promptien parametrit ennen pelin aloitusta.</p>
+            
+            <div style="margin-bottom: 25px; background: #1a1a1a; padding: 15px; border: 1px solid #0f0;">
+                <label style="margin-top: 0;">VALITSE PELITEMPLAATTI:</label>
+                <select id="template-selector" style="background: #222; border: 1px solid #0f0; color: #0f0; padding: 10px; width: 100%; font-size: 1rem; margin-top: 10px;">
+                    <option value="">-- Tyhjä (kirjoita itse) --</option>
+                </select>
+                <button class="btn" style="padding: 10px 20px; font-size: 0.9rem; margin-top: 10px;" onclick="loadSelectedTemplate()">📥 LATAA VALITTU</button>
+                <button class="btn" style="padding: 10px 20px; font-size: 0.9rem; margin-top: 10px; background: #f90; margin-left: 10px;" onclick="saveCurrentAsTemplate()">💾 TALLENNA UUSI</button>
+            </div>
+            
+            <label>MAAILMAN KUVAUS (Setting):</label>
+            <textarea id="world-setting">Ladataan...</textarea>
+            
+            <!-- Piilotetut promptit - tarvitaan serverille mutta ei näytetä käyttäjälle -->
+            <input type="hidden" id="char-prompt-template" value="">
+            <input type="hidden" id="scene-prompt-template" value="">
+            
+            <div style="margin-top: 20px;">
+                <input type="checkbox" id="clear-world" checked>
+                <label class="checkbox-label" for="clear-world">Tyhjennä maailma ja lokit aloitettaessa</label>
+            </div>
+            
+            <button class="btn" onclick="startGame()">▶ ALOITA PELI</button>
+        </div>
+    </div>
+
+    <div id="master-screen">
+        <div class="container">
+            <h1>🎮 GAME MASTER CONSOLE</h1>
+            
+            <div class="access-panel">
+                <h2 style="margin-top: 0; border: none;">PELAAJIEN OSOITE</h2>
+                <div class="access-url" id="player-url">Ladataan...</div>
+                <div class="qr-code" id="qr-container"></div>
+                <p style="color: #888; font-size: 0.9rem;">Pelaajat voivat liittyä peliin avaamalla tämän osoitteen tai skannaamalla QR-koodin.</p>
+            </div>
+
+            <div class="card" style="margin-bottom: 20px; background: #1a0a0a; border: 2px solid #ff6b6b;">
+                <h2 style="margin-top: 0; border: none;">⏱️ PELIN AJASTUS JA VAIHEET</h2>
+                
+                <!-- Peli-ajastin -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #0a0a0a; border: 1px solid #ff6b6b;">
+                    <h3 style="margin-bottom: 10px; font-size: 1rem;">Pelin Kesto</h3>
+                    <div style="margin-bottom: 10px;">
+                        <label>
+                            <input type="radio" name="timer-mode" value="infinite" checked onchange="updateTimerMode()"> 
+                            Ikuinen (ei aikarajaa)
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <label>
+                            <input type="radio" name="timer-mode" value="timed" onchange="updateTimerMode()"> 
+                            Rajattu aika: 
+                            <input type="number" id="timer-minutes" value="120" min="30" max="480" step="30" style="width: 80px; background: #222; color: #0f0; border: 1px solid #0f0; padding: 5px;" disabled>
+                            minuuttia
+                        </label>
+                    </div>
+                    <div id="timer-display" style="font-size: 1.5rem; font-weight: bold; color: #ff6b6b; margin-top: 10px; display: none;">
+                        Jäljellä: <span id="time-remaining">--:--</span>
+                    </div>
+                    <button class="btn" onclick="startGameTimer()" id="start-timer-btn" style="margin-top: 10px; padding: 10px 20px; font-size: 0.9rem;">⏱️ Käynnistä Ajastin</button>
+                </div>
+                
+                <!-- Pelin Vaihe -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #0a0a0a; border: 1px solid #6b6bff;">
+                    <h3 style="margin-bottom: 10px; font-size: 1rem;">Nykyinen Pelin Vaihe</h3>
+                    <input type="text" id="game-phase-name" placeholder="esim. 'Alku', 'Jännite kasvaa', 'Kliimaksi'..." value="Alku"
+                           style="width: 100%; background: #222; color: #0f0; border: 1px solid #0f0; padding: 10px; font-size: 1rem; margin-bottom: 10px;">
+                    <button class="btn" onclick="updateGamePhase()" style="padding: 10px 20px; font-size: 0.9rem;">📝 Päivitä Vaihe Manuaalisesti</button>
+                </div>
+                
+                <!-- AI Dramaturgi -->
+                <div style="padding: 15px; background: #0a0a0a; border: 1px solid #6bff6b;">
+                    <h3 style="margin-bottom: 10px; font-size: 1rem;">🤖 AI Dramaturgi</h3>
+                    <div style="margin-bottom: 10px;">
+                        <label>
+                            <input type="checkbox" id="auto-phase-check" onchange="toggleAutoPhaseCheck()"> 
+                            Automaattinen tilanneanalyysi
+                        </label>
+                        <span style="margin-left: 10px;">joka</span>
+                        <input type="number" id="auto-interval" value="15" min="5" max="60" step="5" 
+                               style="width: 60px; background: #222; color: #0f0; border: 1px solid #0f0; padding: 5px; margin: 0 5px;">
+                        <span>minuutti</span>
+                    </div>
+                    <button class="btn" onclick="analyzeGameState()" style="padding: 10px 20px; font-size: 0.9rem;">🎭 Pyydä Tilanneanalyysi Nyt</button>
+                    <div id="ai-analysis" style="margin-top: 15px; padding: 15px; background: #1a1a1a; border-left: 3px solid #6bff6b; display: none; white-space: pre-wrap;"></div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 20px;">
+                <h2 style="margin-top: 0; border: none;">🎬 LIVE SETTING CONTROL</h2>
+                <p style="color: #888; font-size: 0.9rem;">Muokkaa maailman kuvausta kesken pelin. Vaikuttaa kaikkiin uusiin AI-generaatioihin.</p>
+                <textarea id="live-setting" style="width: 98%; min-height: 100px;"></textarea>
+                <button class="btn" style="margin-top: 10px; padding: 10px 20px; font-size: 1rem;" onclick="updateLiveSetting()">📝 PÄIVITÄ SETTING</button>
+            </div>
+
+            <div class="grid">
+                <div>
+                    <h2>🤖 LLM STATUS</h2>
+                    <div class="card" style="background: #0a0a1a;">
+                        <div style="margin-bottom: 10px;">
+                            <strong>Provider:</strong> <span id="llm-provider" style="color: #0ff;">-</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <strong>Model:</strong> <span id="llm-model" style="color: #0ff;">-</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <strong>World Analyzer:</strong> <span id="analyzer-model" style="color: #0ff;">-</span>
+                        </div>
+                        <div id="llm-activity" style="margin-top: 15px; padding: 10px; background: #1a1a1a; border-left: 3px solid #666; display: none;">
+                            <div style="color: #ff0;">⏳ <span id="activity-text">Processing...</span></div>
+                        </div>
+                    </div>
+
+                    <h2>🌍 WORLD ELEMENTS</h2>
+                    <div class="card" style="background: #0a1a0a;">
+                        <h3 style="font-size: 0.9rem; margin-top: 0; color: #6f6;">Places (<span id="places-count">0</span>)</h3>
+                        <div id="places-list" style="font-size: 0.85rem; color: #afa; margin-bottom: 15px;">Ei paikkoja vielä</div>
+                        
+                        <h3 style="font-size: 0.9rem; color: #6cf;">NPCs (<span id="npcs-count">0</span>)</h3>
+                        <div id="npcs-list" style="font-size: 0.85rem; color: #acf; margin-bottom: 15px;">Ei NPC:itä vielä</div>
+                        
+                        <h3 style="font-size: 0.9rem; color: #fc6;">Items (<span id="items-count">0</span>)</h3>
+                        <div id="items-list" style="font-size: 0.85rem; color: #fda;">Ei esineitä vielä</div>
+                    </div>
+
+                    <h2>👥 CHARACTERS</h2>
+                    <div id="characters-list" class="card" style="background: #1a0a1a;">
+                        <p style="color: #888;">Ei hahmoja vielä</p>
+                    </div>
+                </div>
+
+                <div>
+                    <h2>📜 LIVE LOG FEED</h2>
+                    <div id="master-log"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let gameConfig = {};
+        let availableTemplates = [];
+
+        // Lataa saatavilla olevat pelitemplaatit
+        async function loadTemplates() {
+            try {
+                const response = await fetch('/api/game-templates');
+                availableTemplates = await response.json();
+                
+                const selector = document.getElementById('template-selector');
+                availableTemplates.forEach(template => {
+                    const option = document.createElement('option');
+                    option.value = template.id;
+                    option.textContent = `${template.name} - ${template.description}`;
+                    selector.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Virhe ladattaessa pelitemplaatteja:', error);
+            }
+        }
+
+        // Lataa valittu pelitemplaatti
+        async function loadSelectedTemplate() {
+            const templateId = document.getElementById('template-selector').value;
+            if (!templateId) {
+                // Tyhjennä kentät
+                document.getElementById('world-setting').value = '';
+                document.getElementById('char-prompt-template').value = '';
+                document.getElementById('scene-prompt-template').value = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/game-templates/${templateId}`);
+                const data = await response.json();
+                
+                // Parse markdown content
+                const content = data.content;
+                
+                // Parse Setting
+                const settingMatch = content.match(/## Setting\s+([^#]+)/);
+                const setting = settingMatch ? settingMatch[1].trim() : '';
+                
+                // Parse Themes
+                const themesMatch = content.match(/## Themes\s+([^\n#]+)/);
+                const themes = themesMatch ? themesMatch[1].trim() : '';
+                
+                // Parse Relationships
+                const relMatch = content.match(/## Available Relationships\s+([^\n#]+)/);
+                const relationships = relMatch ? relMatch[1].trim() : '';
+                
+                // Parse Physical Props
+                const propsMatch = content.match(/## Physical Props Guidance\s+([^#]+)/);
+                const props = propsMatch ? propsMatch[1].trim() : '';
+                
+                // Update UI fields
+                document.getElementById('world-setting').value = 
+                    `${setting}\n\nTeemat: ${themes}\nSuhteet: ${relationships}\nFyysiset rekvisiitta: ${props}`;
+                
+                console.log('✅ Template ladattu:', data.id);
+            } catch (error) {
+                console.error('❌ Virhe ladattaessa pelitemplaattia:', error);
+                alert('Virhe ladattaessa pelitemplaattia!');
+            }
+        }
+
+        // Tallenna nykyinen konfiguraatio uutena pelitemplaattina
+        async function saveCurrentAsTemplate() {
+            const name = prompt('Anna pelitemplatille nimi:');
+            if (!name) return;
+            
+            const description = prompt('Anna lyhyt kuvaus pelille (vapaaehtoinen):') || '';
+            const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            
+            const template = {
+                id: id,
+                name: name,
+                description: description,
+                setting: document.getElementById('world-setting').value,
+                charPromptTemplate: '',  // Ei käytetä enää
+                scenePromptTemplate: ''  // Ei käytetä enää
+            };
+            
+            try {
+                const response = await fetch('/api/game-templates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(template)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert(`Pelitemplaatti "${name}" tallennettu!`);
+                    // Päivitä lista
+                    await loadTemplates();
+                } else {
+                    alert('Virhe tallentamisessa: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Virhe tallentaessa pelitemplaattia:', error);
+                alert('Virhe tallentaessa pelitemplaattia!');
+            }
+        }
+
+        // Lataa oletuskonfiguraatio serveriltä
+        async function loadDefaultConfig() {
+            try {
+                const response = await fetch('/api/default-config');
+                const config = await response.json();
+                document.getElementById('world-setting').value = config.setting;
+                document.getElementById('char-prompt-template').value = config.charPromptTemplate;
+                document.getElementById('scene-prompt-template').value = config.scenePromptTemplate;
+            } catch (error) {
+                console.error('Virhe ladattaessa konfiguraatiota:', error);
+            }
+        }
+
+        // Lataa config ja templatet kun sivu aukeaa
+        loadDefaultConfig();
+        loadTemplates();
+
+        function updateLiveSetting() {
+            const newSetting = document.getElementById('live-setting').value;
+            socket.emit('update_setting', { setting: newSetting });
+            document.getElementById('active-setting').innerText = newSetting;
+            console.log('Setting päivitetty:', newSetting);
+        }
+
+        // === TIMER FUNKTIOT ===
+        let timerInterval = null;
+        let gameEndTime = null;
+
+        function updateTimerMode() {
+            const mode = document.querySelector('input[name="timer-mode"]:checked').value;
+            const display = document.getElementById('timer-display');
+            const minutesInput = document.getElementById('timer-minutes');
+            
+            if (mode === 'timed') {
+                minutesInput.disabled = false;
+                display.style.display = 'block';
+            } else {
+                minutesInput.disabled = true;
+                display.style.display = 'none';
+                if (timerInterval) clearInterval(timerInterval);
+            }
+        }
+
+        function startGameTimer() {
+            const mode = document.querySelector('input[name="timer-mode"]:checked').value;
+            const minutes = parseInt(document.getElementById('timer-minutes').value);
+            
+            socket.emit('update_game_timer', {
+                timer: {
+                    mode: mode,
+                    totalMinutes: minutes
+                }
+            });
+            
+            if (mode === 'timed') {
+                gameEndTime = new Date();
+                gameEndTime.setMinutes(gameEndTime.getMinutes() + minutes);
+                updateTimerDisplay();
+                timerInterval = setInterval(updateTimerDisplay, 1000);
+                document.getElementById('start-timer-btn').disabled = true;
+                document.getElementById('start-timer-btn').innerText = '⏱️ Ajastin Käynnissä';
+            }
+        }
+
+        function updateTimerDisplay() {
+            if (!gameEndTime) return;
+            
+            const now = new Date();
+            const remaining = gameEndTime - now;
+            
+            if (remaining <= 0) {
+                document.getElementById('time-remaining').textContent = '00:00';
+                clearInterval(timerInterval);
+                alert('⏰ Peli-aika loppui!');
+                return;
+            }
+            
+            const minutes = Math.floor(remaining / 60000);
+            const seconds = Math.floor((remaining % 60000) / 1000);
+            document.getElementById('time-remaining').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // === PHASE FUNKTIOT ===
+        function updateGamePhase() {
+            const phaseName = document.getElementById('game-phase-name').value.trim();
+            if (!phaseName) {
+                alert('Kirjoita vaiheen nimi!');
+                return;
+            }
+            
+            socket.emit('update_game_phase', { phaseName });
+            console.log('✅ Vaihe päivitetty:', phaseName);
+        }
+
+        function toggleAutoPhaseCheck() {
+            const enabled = document.getElementById('auto-phase-check').checked;
+            const intervalMinutes = parseInt(document.getElementById('auto-interval').value);
+            
+            socket.emit('toggle_auto_phase_check', { enabled, intervalMinutes });
+            console.log(`🤖 Auto-analyysi ${enabled ? 'käynnistetty' : 'pysäytetty'}`);
+        }
+
+        function analyzeGameState() {
+            socket.emit('analyze_game_state');
+            const analysisDiv = document.getElementById('ai-analysis');
+            analysisDiv.innerHTML = '⏳ Analysoidaan pelin tilannetta...';
+            analysisDiv.style.display = 'block';
+        }
+
+        // === SOCKET EVENTIT ===
+        socket.on('game_analysis_result', (data) => {
+            const analysisDiv = document.getElementById('ai-analysis');
+            const autoFlag = data.automatic ? ' [AUTOMAATTINEN]' : '';
+            analysisDiv.innerHTML = 
+                `<strong>🎭 AI Analyysi${autoFlag}</strong>\n` +
+                `<em>${new Date(data.timestamp).toLocaleString('fi-FI')}</em>\n\n` +
+                `${data.analysis}`;
+            analysisDiv.style.display = 'block';
+        });
+
+        socket.on('phase_updated', (data) => {
+            document.getElementById('game-phase-name').value = data.phase;
+            console.log('✅ Vaihe päivitetty:', data.phase);
+        });
+
+        socket.on('timer_updated', (timer) => {
+            console.log('⏱️ Ajastin päivitetty:', timer);
+        });
+
+        function startGame() {
+            const templateId = document.getElementById('template-selector').value;
+            const customSetting = document.getElementById('world-setting').value.trim();
+            
+            // Jos ei ole valittu templateä eikä kirjoitettu settingiä
+            if (!templateId && !customSetting) {
+                alert('Valitse pelitemplate TAI kirjoita oma setting!');
+                return;
+            }
+            
+            gameConfig = {
+                templateId: templateId || null,
+                setting: customSetting || null,
+                clearWorld: document.getElementById('clear-world').checked,
+                timedMode: document.querySelector('input[name="timer-mode"]:checked').value === 'timed',
+                totalMinutes: parseInt(document.getElementById('timer-minutes').value) || 120,
+                autoPhaseCheck: document.getElementById('auto-phase-check').checked
+            };
+
+            // Lähetä config serverille
+            socket.emit('gm_initialize', gameConfig);
+
+            // Näytä master screen
+            document.getElementById('config-screen').classList.remove('visible');
+            document.getElementById('master-screen').classList.add('visible');
+
+            // Tyhjennä edellisen pelin log feed
+            document.getElementById('master-log').innerHTML = '';
+
+            // Alusta live setting kenttä
+            const settingText = customSetting || 'Template valittu';
+            const liveSettingElement = document.getElementById('live-setting');
+            if (liveSettingElement) {
+                liveSettingElement.value = settingText;
+            }
+        }
+
+        // LLM Activity Indicator
+        function showLLMActivity(message) {
+            const activityDiv = document.getElementById('llm-activity');
+            document.getElementById('activity-text').textContent = message;
+            activityDiv.style.display = 'block';
+            activityDiv.style.borderLeftColor = '#ff0';
+        }
+
+        function hideLLMActivity() {
+            setTimeout(() => {
+                const activityDiv = document.getElementById('llm-activity');
+                activityDiv.style.display = 'none';
+            }, 1000);
+        }
+
+        // updateWorldElements removed - cognitive memory architecture doesn't use world.json
+        // World elements discovery moved to character memories
+
+        // Päivitä Characters näkymä (uusi kognitiivinen muisti-arkkitehtuuri)
+        function updateCharacters(characters) {
+            const charList = document.getElementById('characters-list');
+            
+            // Handle both old format (world.characters object) and new format (array)
+            let chars = [];
+            if (Array.isArray(characters)) {
+                chars = characters;
+            } else if (characters && typeof characters === 'object') {
+                chars = Object.values(characters);
+            }
+            
+            if (chars.length === 0) {
+                charList.innerHTML = '<p style="color: #888;">Ei hahmoja vielä</p>';
+                return;
+            }
+            
+            charList.innerHTML = chars.map((char, idx) => {
+                // Build memories details (collapsed by default, expandable)
+                let memoriesDetails = '';
+                
+                if (char.memory?.key_moments && char.memory.key_moments.length > 0) {
+                    const moments = char.memory.key_moments
+                        .slice(-3) // Last 3
+                        .map(m => `<li style="margin: 3px 0;">${m.content}</li>`)
+                        .join('');
+                    memoriesDetails += `<div id="memories-${idx}" style="display: none; margin-top: 8px; padding: 8px; background: #0a0a0a; border-left: 2px solid #0f0; font-size: 0.8rem;">
+                        <strong style="color: #6bff6b;">Viimeisimmät muistot:</strong>
+                        <ul style="margin: 5px 0 0 15px; color: #0a0;">${moments}</ul>
+                    </div>`;
+                }
+                
+                if (char.memory?.relationships && Object.keys(char.memory.relationships).length > 0) {
+                    const rels = Object.entries(char.memory.relationships)
+                        .map(([targetId, rel]) => {
+                            const intensityBar = '█'.repeat(rel.intensity) + '░'.repeat(5 - rel.intensity);
+                            return `<li style="margin: 3px 0;"><strong style="color: #0ff;">${targetId}</strong>: ${rel.value} ${intensityBar}</li>`;
+                        })
+                        .join('');
+                    memoriesDetails += `<div id="relationships-${idx}" style="display: none; margin-top: 8px; padding: 8px; background: #0a0a0a; border-left: 2px solid #0ff; font-size: 0.8rem;">
+                        <strong style="color: #6bffff;">Suhteet:</strong>
+                        <ul style="margin: 5px 0 0 15px; color: #0aa;">${rels}</ul>
+                    </div>`;
+                }
+                
+                const keyMoments = char.memory?.key_moments ? 
+                    `<div style="font-size: 0.8rem; color: #aaa; margin-top: 5px; cursor: pointer;" onclick="toggleMemories(${idx})">🧠 ${char.memory.key_moments.length} key moments <span style="color: #666;">▼</span></div>` : '';
+                const relationships = char.memory?.relationships && Object.keys(char.memory.relationships).length > 0 ? 
+                    `<div style="font-size: 0.8rem; color: #aaf; margin-top: 5px;">👥 ${Object.keys(char.memory.relationships).length} relationships</div>` : '';
+                
+                return `
+                    <div style="border-bottom: 1px solid #333; padding: 10px 0;">
+                        <strong style="color: #0ff;">${char.name}</strong>
+                        <span style="color: #666; font-size: 0.8rem; margin-left: 10px;">(${char.status})</span>
+                        <div style="font-size: 0.8rem; color: #888; margin-top: 3px;">${char.description?.substring(0, 80)}...</div>
+                        ${keyMoments}
+                        ${relationships}
+                        ${memoriesDetails}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Toggle memories visibility
+        function toggleMemories(idx) {
+            const memoriesDiv = document.getElementById(`memories-${idx}`);
+            const relsDiv = document.getElementById(`relationships-${idx}`);
+            if (memoriesDiv) {
+                memoriesDiv.style.display = memoriesDiv.style.display === 'none' ? 'block' : 'none';
+            }
+            if (relsDiv) {
+                relsDiv.style.display = relsDiv.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        // Vastaanota serverin IP-tiedot
+        socket.on('server_info', (info) => {
+            const playerUrl = `http://${info.ip}:${info.port}/`;
+            document.getElementById('player-url').innerText = playerUrl;
+
+            // Generoi QR-koodi
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(playerUrl)}`;
+            document.getElementById('qr-container').innerHTML = `<img src="${qrApiUrl}" alt="QR Code" style="border: 2px solid #0f0;">`;
+            
+            // Näytä LLM status (jos saatavilla)
+            if (info.llmProvider) {
+                document.getElementById('llm-provider').textContent = info.llmProvider.toUpperCase();
+                document.getElementById('llm-model').textContent = info.llmModel || 'Unknown';
+                document.getElementById('analyzer-model').textContent = info.analyzerModel || 'Unknown';
+            }
+        });
+
+        // world_update removed - using character_updated events instead
+        
+        // Kuuntele character_joined eventejä (uusi kognitiivinen muisti-arkkitehtuuri)
+        socket.on('character_joined', (character) => {
+            console.log('👤 Pelaaja liittyi:', character.name);
+            // Load and update characters list from server
+            fetch('/api/characters').then(r => r.json()).then(chars => {
+                updateCharacters(chars);
+            }).catch(() => {
+                // Fallback: update will happen on next sync_state
+            });
+            showLLMActivity(`${character.name} liittyi peliin`);
+            setTimeout(hideLLMActivity, 2000);
+        });
+        
+        // Kuuntele character_updated eventejä (memory extraction)
+        socket.on('character_updated', (data) => {
+            console.log('🧠 Hahmon muistot päivittyivät:', data.charId);
+            // Reload all characters to show updated memories
+            fetch('/api/characters').then(r => r.json()).then(chars => {
+                updateCharacters(chars);
+            }).catch(err => {
+                console.error('Error reloading characters:', err);
+            });
+        });
+
+        // Kuuntele kaikkia story-päivityksiä
+        socket.on('story_update', (storyEntry) => {
+            const masterLog = document.getElementById('master-log');
+            const entryDiv = document.createElement('div');
+            entryDiv.className = storyEntry.playerSubmitted ? 'card log-entry player-action' : 'card log-entry';
+            
+            // Check for dramaturgical tags
+            let instruction = storyEntry.instruction;
+            const dramaturgMatch = instruction.match(/\*\*\[DYNAMIC:\s*([^\|]+)\s*\|\s*FORMAT:\s*([^\]]+)\]\*\*/);
+            
+            if (dramaturgMatch) {
+                const dynamic = dramaturgMatch[1].trim();
+                const format = dramaturgMatch[2].trim();
+                instruction = instruction.replace(dramaturgMatch[0], '').trim();
+                
+                entryDiv.innerHTML = `
+                    <div class="timestamp">${storyEntry.timestamp} - ${storyEntry.targetChar}</div>
+                    <div style="background: #1a1a0a; padding: 5px; margin-bottom: 5px; border-left: 2px solid #ff0; font-size: 0.85rem;">
+                        <strong style="color: #ff0;">🎭 ${dynamic}</strong> | <em style="color: #ffa;">${format}</em>
+                    </div>
+                    <div>${instruction}</div>
+                `;
+            } else {
+                entryDiv.innerHTML = `
+                    <div class="timestamp">${storyEntry.timestamp} - ${storyEntry.targetChar}</div>
+                    <div>${instruction}</div>
+                `;
+            }
+            
+            masterLog.prepend(entryDiv);
+            
+            // Jos AI vastaus, näytä aktiviteetti
+            if (!storyEntry.playerSubmitted && !storyEntry.playerJoined) {
+                showLLMActivity('AI generated response');
+                setTimeout(hideLLMActivity, 2000);
+            }
+        });
+
+        // Synkkaa historia
+        socket.on('sync_state', (data) => {
+            const masterLog = document.getElementById('master-log');
+            data.story.forEach(entry => {
+                const entryDiv = document.createElement('div');
+                entryDiv.className = entry.playerSubmitted ? 'card log-entry player-action' : 'card log-entry';
+                
+                // Check for dramaturgical tags
+                let instruction = entry.instruction;
+                const dramaturgMatch = instruction.match(/\*\*\[DYNAMIC:\s*([^\|]+)\s*\|\s*FORMAT:\s*([^\]]+)\]\*\*/);
+                
+                if (dramaturgMatch) {
+                    const dynamic = dramaturgMatch[1].trim();
+                    const format = dramaturgMatch[2].trim();
+                    instruction = instruction.replace(dramaturgMatch[0], '').trim();
+                    
+                    entryDiv.innerHTML = `
+                        <div class="timestamp">${entry.timestamp} - ${entry.targetChar}</div>
+                        <div style="background: #1a1a0a; padding: 5px; margin-bottom: 5px; border-left: 2px solid #ff0; font-size: 0.85rem;">
+                            <strong style="color: #ff0;">🎭 ${dynamic}</strong> | <em style="color: #ffa;">${format}</em>
+                        </div>
+                        <div>${instruction}</div>
+                    `;
+                } else {
+                    entryDiv.innerHTML = `
+                        <div class="timestamp">${entry.timestamp} - ${entry.targetChar}</div>
+                        <div>${instruction}</div>
+                    `;
+                }
+                
+                masterLog.appendChild(entryDiv);
+            });
+            
+            // Päivitä characters (uusi arkkitehtuuri: array eikä world.characters)
+            if (data.characters) {
+                updateCharacters(data.characters);
+            }
+        });
+    </script>
+</body>
+</html>

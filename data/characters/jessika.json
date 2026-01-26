@@ -1,0 +1,77 @@
+{
+  "name": "jessika",
+  "id": "jessika",
+  "description": "Elina is Frank's wife and the kartano's cook, a woman known for her comforting presence and delicious meals, but harboring a quiet desperation. She's fiercely protective of Frank and their small life, and deeply worried about the secrets that surround them. Her own secret involves a past life she desperately tries to keep hidden from the family.",
+  "personality": [
+    "observant",
+    "resilient",
+    "anxious"
+  ],
+  "goals": [
+    "Keep Frank safe and out of trouble",
+    "Secure a comfortable future for herself and Frank",
+    "Prevent her past from being revealed"
+  ],
+  "status": "active",
+  "memory": {
+    "key_moments": [
+      {
+        "content": "Offered frank a comforting meal and subtly inquired about his well-being.",
+        "emotionalWeight": 3,
+        "participants": [
+          "jessika",
+          "frank"
+        ],
+        "timestamp": "2026-01-23T14:25:40.038Z"
+      },
+      {
+        "content": "Offered Frank a comforting meal and asked if something was troubling him.",
+        "emotionalWeight": 2,
+        "participants": [
+          "jessika",
+          "frank"
+        ],
+        "timestamp": "2026-01-23T14:31:10.942Z"
+      },
+      {
+        "content": "Frank expressed suspicion that someone in the house is not who they seem.",
+        "emotionalWeight": 3,
+        "participants": [
+          "jessika",
+          "frank"
+        ],
+        "timestamp": "2026-01-23T14:31:10.942Z"
+      },
+      {
+        "content": "Asked Frank directly if there was anything he hadn't told me.",
+        "emotionalWeight": 2,
+        "participants": [
+          "jessika",
+          "frank"
+        ],
+        "timestamp": "2026-01-23T14:31:10.942Z"
+      },
+      {
+        "content": "Frank offered to help me with dinner and asked about the conversation between the lord and lady Ainsworth.",
+        "emotionalWeight": 2,
+        "participants": [
+          "jessika",
+          "frank"
+        ],
+        "timestamp": "2026-01-23T14:31:10.942Z"
+      }
+    ],
+    "relationships": {
+      "frank": {
+        "value": "suspect",
+        "intensity": 1,
+        "notes": "Frank's distant behavior and expression of suspicion."
+      }
+    }
+  },
+  "playerMeta": {
+    "language": "en",
+    "sessionCount": 1,
+    "joinedAt": "2026-01-23T14:25:05.413Z"
+  }
+}

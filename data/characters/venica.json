@@ -1,0 +1,47 @@
+{
+  "name": "Venica",
+  "id": "venica",
+  "description": "Olen Venica, kartanon nuori ja kunnianhimoinen piika, joka haaveilee paremmasta elämästä. Pyrin olemaan huomaamaton ja miellyttävä, mutta olen valmis tekemään mitä tahansa päästäkseni tavoitteisiini. Salaisuuteni liittyy kartanon perillisen, nuoren herra Augustuksen, kanssa käytyyn kiellettyyn suhteeseen.",
+  "personality": [
+    "älykäs",
+    "manipuloiva",
+    "ulospäinsuuntautunut"
+  ],
+  "goals": [
+    "Selvittää, kuka murhasi herra Lindqvistin.",
+    "Nostaa omaa asemaani kartanossa.",
+    "Pakoon Augustuksen kanssa ja aloittaa uusi elämä."
+  ],
+  "status": "active",
+  "memory": {
+    "key_moments": [
+      {
+        "content": "Tarjosin Jessikalle apua tiskaamisessa ja kysyin hänen mielipidettään Frankin käytöksestä.",
+        "emotionalWeight": 1,
+        "participants": [
+          "venica",
+          "jessika",
+          "frank"
+        ],
+        "timestamp": "2026-01-23T14:31:10.942Z"
+      }
+    ],
+    "relationships": {
+      "frank": {
+        "value": "suspect",
+        "intensity": 1,
+        "notes": "Kysyin Jessikalta hänen mielipidettään Frankin käytöksestä, epäilen häntä."
+      },
+      "jessika": {
+        "value": "trust",
+        "intensity": 1,
+        "notes": "Tarjosin apua ja kysyin mielipidettä, yritän luoda luottamusta."
+      }
+    }
+  },
+  "playerMeta": {
+    "language": "fi",
+    "sessionCount": 1,
+    "joinedAt": "2026-01-23T14:30:33.701Z"
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "maxSize": 20,
+  "entries": [
+    {
+      "id": 1769178170357,
+      "timestamp": "16.22.50",
+      "targetChar": "frank",
+      "targetId": "frank",
+      "instruction": "[PELAAJA LIITTYI] frank liittyi peliin.",
+      "playerJoined": true,
+      "playerSubmitted": false
+    },
+    {
+      "id": 1769178180114,
+      "timestamp": "16.23.00",
+      "targetChar": "frank",
+      "targetId": "frank",
+      "instruction": "**[DYNAMIC: SISÄINEN RISTIRIITA | FORMAT: REFLECTION]**\n\nKävele kartanon pääsalin takkaan ja tutki sen koristeita huolellisesti. Samalla, mieti ääneen: \"Olenko todella nähnyt sen korun, vai onko se vain mielikuvituksen tuotetta? Jos se on totta, mitä minun pitäisi tehdä?\" Raportoi tekstikenttään, mitä takan koristeista huomaat.",
+      "playerJoined": false,
+      "playerSubmitted": false
+    },
+    {
+      "id": 1769178194533,
+      "timestamp": "16.23.14",
+      "targetChar": "frank",
+      "targetId": "frank",
+      "instruction": "**[DYNAMIC: SISÄINEN RISTIRIITA | FORMAT: REFLECTION]**\n\nKävele kartanon kirjastoon ja etsi hyllystä vanha, nahkakantinen päiväkirja. Kun pidät sitä käsissäsi, mieti ääneen: \"Olisiko tässä jotain, mikä voisi selittää tämän kaiken? Vai pitäisikö minun vain haudata omat salaisuuteni syvemmälle?\"",
+      "playerJoined": false,
+      "playerSubmitted": false
+    },
+    {
+      "id": 1769178305413,
+      "timestamp": "16.25.05",
+      "targetChar": "jessika",
+      "targetId": "jessika",
+      "instruction": "[PELAAJA LIITTYI] jessika liittyi peliin.",
+      "playerJoined": true,
+      "playerSubmitted": false
+    },
+    {
+      "id": 1769178332358,
+      "timestamp": "16.25.32",
+      "targetChar": "jessika",
+      "targetId": "jessika",
+      "instruction": "**[DYNAMIC: LUOTTAMUS/EPÄLUOTTAMUS | FORMAT: OFFER]**\n\nGo to **frank** and offer to prepare a special, comforting meal for him – something only you two would share a memory of. While offering, subtly ask: \"Is there anything troubling you, dear? You seem…distant.\"",
+      "playerJoined": false,
+      "playerSubmitted": false
+    },
+    {
+      "id": 1769178370434,
+      "timestamp": "16.26.10",
+      "targetChar": "frank",
+      "targetId": "frank",
+      "instruction": "**[DYNAMIC: LUOTTAMUS/EPÄLUOTTAMUS | FORMAT: STATEMENT]**\n\nMene **Jessikan** luo keittiöön ja sano hänelle: \"Kiitos tarjouksestasi, mutta minulla on tunne, että joku tässä talossa ei ole sitä, mitä väittää olevansa.\" Katso hänen reaktiotaan tarkasti.",
+      "playerJoined": false,
+      "playerSubmitted": false
+    },
+    {
+      "id": 1769178380994,
+      "timestamp": "16.26.20",
+      "targetChar": "jessika",
+      "targetId": "jessika",
+      "instruction": "**[DYNAMIC: LUOTTAMUS/EPÄLUOTTAMUS | FORMAT: QUESTION]**\n\nGo to **frank** and ask him, looking directly into his eyes: \"Is there anything troubling you that you haven't told me?\" Report his exact response.",
+      "playerJoined": false,
+      "playerSubmitted": false
+    },
+    {
+      "id": 1769178396753,
+      "timestamp": "16.26.36",
+      "targetChar": "frank",
+      "targetId": "frank",
+      "instruction": "**[DYNAMIC: LIITTOUMA/PETOS | FORMAT: OFFER]**\n\nMene **Jessikan** luo keittiöön ja tarjoa auttaa häntä valmistamaan illallista, samalla kun kysyt häneltä, mitä hän kuuli kartanonherran ja rouva Ainsworthin puhuvan eilen illalla.",
+      "playerJoined": false,
+      "playerSubmitted": false
+    },
+    {
+      "id": 1769178633701,
+      "timestamp": "16.30.33",
+      "targetChar": "Venica",
+      "targetId": "venica",
+      "instruction": "[PELAAJA LIITTYI] Venica liittyi peliin.",
+      "playerJoined": true,
+      "playerSubmitted": false
+    },
+    {
+      "id": 1769178655073,
+      "timestamp": "16.30.55",
+      "targetChar": "Venica",
+      "targetId": "venica",
+      "instruction": "**[DYNAMIC: LUOTTAMUS/EPÄLUOTTAMUS | FORMAT: OFFER]**\n\nMene **Jessikan** luo keittiöön ja tarjoa auttaa häntä tiskaamaan, samalla kun kysyt häneltä, mitä hän ajattelee **Frankin** käytöksestä tänään.",
+      "playerJoined": false,
+      "playerSubmitted": false
+    }
+  ]
+}

@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LARP Client</title>
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Courier New', Courier, monospace; 
+            background: #111; 
+            color: #0f0; 
+            height: 100vh;
+            height: 100dvh; /* Dynamic viewport height - huomioi osoitepalkin */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Login Screen */
+        #login-screen { 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            height: 100dvh;
+            padding: 20px;
+        }
+        #login-screen h1 { 
+            font-size: 2rem; 
+            margin-bottom: 20px; 
+            text-align: center;
+        }
+        #login-screen input { 
+            background: #222; 
+            border: 2px solid #0f0; 
+            color: #0f0; 
+            padding: 15px; 
+            width: 100%;
+            max-width: 400px;
+            font-family: inherit; 
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #login-screen button { 
+            background: #0f0; 
+            color: #000; 
+            border: none; 
+            padding: 15px 40px; 
+            font-size: 1.2rem; 
+            font-weight: bold; 
+            cursor: pointer;
+        }
+        
+        /* Game Screen Layout */
+        #game-screen { 
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh; /* Dynamic viewport height */
+        }
+        #game-screen.visible { display: flex; }
+        
+        /* Character Info - Fixed at top */
+        #character-header { 
+            background: #000; 
+            border-bottom: 2px solid #0f0; 
+            padding: 15px; 
+            flex-shrink: 0;
+            max-height: 40vh; /* Rajoita maksimikorkeus */
+            overflow-y: auto; /* Jos sisältö ylittää, scrollaa */
+            display: flex;
+            flex-direction: column;
+        }
+        .character-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        #character-header h1 { 
+            font-size: 1.2rem; 
+            margin: 0;
+        }
+        #toggle-char-info {
+            background: transparent;
+            border: 1px solid #0f0;
+            color: #0f0;
+            font-size: 1.2rem;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        #toggle-char-info:active {
+            background: #0f0;
+            color: #000;
+        }
+        #character-info { 
+            font-size: 0.9rem; 
+            line-height: 1.4;
+            color: #0a0;
+            max-height: none; /* Poista kiinteä max-height, parent hoitaa */
+            overflow-y: visible;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+        }
+        #character-info.collapsed {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        
+        /* Markdown-tyylit hahmokuvauksessa ja viesteissä */
+        #character-info strong, .message .content strong {
+            color: #0ff;
+            font-weight: bold;
+        }
+        #character-info em, .message .content em {
+            color: #ff0;
+            font-style: italic;
+        }
+        #character-info h1, .message .content h1,
+        #character-info h2, .message .content h2,
+        #character-info h3, .message .content h3 {
+            color: #0ff;
+            margin: 10px 0 5px 0;
+            font-size: 1.1em;
+        }
+        #character-info ul, .message .content ul,
+        #character-info ol, .message .content ol {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+        #character-info p, .message .content p {
+            margin-bottom: 8px;
+        }
+        
+        /* Player Settings */
+        #player-settings {
+            margin-top: 10px;
+            padding: 15px;
+            border-top: 1px solid #0f0;
+            background: #0a0a0a;
+        }
+        #player-settings h3 {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            color: #6bff6b;
+        }
+        #player-settings label {
+            display: block;
+            font-size: 0.9rem;
+            color: #0a0;
+            margin-bottom: 5px;
+        }
+        #player-settings select,
+        #player-settings input[type="text"] {
+            width: 100%;
+            background: #222;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            margin-bottom: 10px;
+        }
+        .quick-style {
+            background: #222;
+            border: 1px solid #0a0;
+            color: #0a0;
+            padding: 3px 8px;
+            margin: 2px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .quick-style:active {
+            background: #0a0;
+            color: #000;
+        }
+        #settings-btn {
+            background: transparent;
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        
+        /* Message Feed - Scrollable middle section */
+        #message-feed { 
+            flex: 1; 
+            min-height: 0;
+            overflow-y: scroll; 
+            overflow-x: hidden;
+            padding: 15px; 
+            display: flex;
+            flex-direction: column;
+            scroll-behavior: smooth;
+        }
+        
+        .message { 
+            margin-bottom: 15px; 
+            padding: 12px; 
+            border-radius: 8px;
+            max-width: 85%;
+        }
+        .message.incoming { 
+            background: #1a3d1a; 
+            align-self: flex-start;
+            border-left: 3px solid #0f0;
+        }
+        .message.outgoing { 
+            background: #1a1a3d; 
+            align-self: flex-end;
+            border-right: 3px solid #00f;
+            color: #88f;
+        }
+        .message .timestamp { 
+            font-size: 0.7rem; 
+            color: #666; 
+            margin-bottom: 5px; 
+        }
+        .message .content { 
+            line-height: 1.4; 
+        }
+        
+        /* Input Area - Fixed at bottom */
+        #input-area { 
+            background: #000; 
+            border-top: 2px solid #0f0; 
+            padding: 15px; 
+            padding-bottom: max(15px, env(safe-area-inset-bottom)); /* Turvallinen alue mobiilissa */
+            flex-shrink: 0;
+        }
+        #message-input { 
+            width: 100%; 
+            background: #222; 
+            border: 1px solid #0f0; 
+            color: #0f0; 
+            padding: 12px; 
+            font-family: inherit; 
+            font-size: 1rem;
+            margin-bottom: 10px;
+            resize: vertical;
+            min-height: 50px;
+        }
+        
+        .btn { 
+            width: 100%;
+            background: #0f0; 
+            color: #000; 
+            border: none; 
+            padding: 15px; 
+            font-size: 1rem; 
+            font-weight: bold; 
+            cursor: pointer;
+            position: relative;
+            z-index: 11;
+        }
+        .btn:active { background: #0a0; }
+        .btn:disabled { 
+            background: #333; 
+            color: #666; 
+            cursor: not-allowed;
+        }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="login-screen" class="visible" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 1000; background: #111;">
+        <h1>LIITY PELIIN</h1>
+        <input type="text" id="username" placeholder="Syötä nimesi..." autofocus>
+        
+        <div style="margin: 20px 0;">
+            <label style="color: #0a0; display: block; margin-bottom: 5px;">Valitse kieli / Choose language:</label>
+            <select id="language-select" style="background: #222; border: 1px solid #0f0; color: #0f0; padding: 10px; font-size: 1rem; width: 100%; cursor: pointer;">
+                <option value="fi">Suomi (Finnish)</option>
+                <option value="en">English</option>
+                <option value="sv">Svenska (Swedish)</option>
+                <option value="de">Deutsch (German)</option>
+                <option value="fr">Français (French)</option>
+            </select>
+        </div>
+        
+        <button id="join-btn">JATKA</button>
+    </div>
+    
+    <div id="game-screen" style="display: none;">
+        <div id="character-header">
+            <div class="character-title-row">
+                <h1 id="char-name">...</h1>
+                <div>
+                    <button id="settings-btn" title="Asetukset">⚙️</button>
+                    <button id="toggle-char-info" title="Näytä/piilota hahmokuvaus">V</button>
+                </div>
+            </div>
+            <div id="character-info">Ladataan hahmoa...</div>
+            
+            <!-- Pelaajan asetukset -->
+            <div id="player-settings" style="display: none;">
+                <h3>⚙️ Asetukseni</h3>
+                
+                <div style="margin-bottom: 15px;">
+                    <label>Kieli / Language:</label>
+                    <select id="player-language">
+                        <option value="fi">🇫🇮 Suomi</option>
+                        <option value="en">🇬🇧 English</option>
+                        <option value="sv">🇸🇪 Svenska</option>
+                        <option value="de">🇩🇪 Deutsch</option>
+                        <option value="fr">🇫🇷 Français</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label>Pelityylini (vapaa teksti):</label>
+                    <input type="text" id="play-style-input" placeholder="esim. 'aktiivinen', 'tarkkaileva', 'dramaattinen'...">
+                    <div style="font-size: 0.75rem; color: #666; font-style: italic; margin-top: 5px;">
+                        Tai valitse valmis:
+                        <button class="quick-style" onclick="setPlayStyle('Aktiivinen - haluan enemmän haasteita')">Aktiivinen</button>
+                        <button class="quick-style" onclick="setPlayStyle('Rauhallinen - seuraan tilanteita')">Rauhallinen</button>
+                        <button class="quick-style" onclick="setPlayStyle('Dramaattinen - tykkään konflikteista')">Dramaattinen</button>
+                    </div>
+                </div>
+                
+                <button class="btn" onclick="savePlayerSettings()" style="margin-top: 15px;">
+                    💾 Tallenna Asetukset
+                </button>
+            </div>
+        </div>
+        
+        <div id="message-feed"></div>
+        
+        <div id="input-area">
+            <textarea id="message-input" placeholder="(leave this blank for instructions)"></textarea>
+            <button class="btn" id="and-then-btn">AND THEN →</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myCharId = null;
+        let myName = null;
+        let loaderInterval = null;
+        let loadingMessageId = null;
+
+        // Loading animaatio - voit muokata tätä taulukkoa haluamallasi ASCII-taiteella
+        const loadingFrames = [
+            'LOADING.',
+            'LOADING..',
+            'LOADING...',
+            'LOADING....'
+        ];
+        let frameIndex = 0;
+
+        function startLoader(messageText = 'LOADING') {
+            // Pysäytä edellinen loader jos käynnissä
+            stopLoader();
+            
+            // Luo placeholder-viesti feediin
+            const feed = document.getElementById('message-feed');
+            const msgDiv = document.createElement('div');
+            loadingMessageId = 'loading-' + Date.now();
+            msgDiv.id = loadingMessageId;
+            msgDiv.className = 'message incoming';
+            msgDiv.innerHTML = `
+                <div class="timestamp">...</div>
+                <div class="content">${loadingFrames[0]}</div>
+            `;
+            feed.appendChild(msgDiv);
+            // Auto-scroll
+            feed.scrollTop = feed.scrollHeight;
+            
+            // Aloita animaatio
+            frameIndex = 0;
+            loaderInterval = setInterval(() => {
+                const loadMsg = document.getElementById(loadingMessageId);
+                if (loadMsg) {
+                    loadMsg.querySelector('.content').innerText = loadingFrames[frameIndex];
+                    frameIndex = (frameIndex + 1) % loadingFrames.length;
+                }
+            }, 400);
+        }
+
+        function stopLoader() {
+            if (loaderInterval) {
+                clearInterval(loaderInterval);
+                loaderInterval = null;
+            }
+            // Poista placeholder-viesti
+            if (loadingMessageId) {
+                const loadMsg = document.getElementById(loadingMessageId);
+                if (loadMsg) {
+                    loadMsg.remove();
+                }
+                loadingMessageId = null;
+            }
+        }
+
+        // FLOW STATE
+        let playerName = '';
+        let playerLanguage = 'fi';
+        let inTutorial = false; // Onko pelaajalla jo hahmoa vai ei
+        let tutorialHistory = []; // Keskusteluhistoria tutoriaalissa
+
+        // 1. LIITY PELIIN
+        function joinGame() {
+            const name = document.getElementById('username').value.trim();
+            const language = document.getElementById('language-select').value;
+            
+            if (!name) {
+                alert('Anna nimesi!');
+                return;
+            }
+            
+            playerName = name;
+            playerLanguage = language;
+            tutorialHistory = []; // Nollaa historia uudelle pelaajalle
+            
+            // Päivitä kielivalinta game screenin asetuksiin
+            document.getElementById('player-language').value = language;
+            
+            // Lähetä serverille
+            socket.emit('join_game', { playerName: name, language: language });
+            
+            // Piilota login, näytä game
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('char-name').innerText = name;
+            
+            // Aloita tutorial mode
+            inTutorial = true;
+            document.getElementById('character-info').innerHTML = '<p style="color: #888; font-style: italic;">Odottaa hahmon luontia...</p>';
+            
+            // Generoi tervetuloviesti LLM:llä pelaajan kielellä
+            setTimeout(() => {
+                startLoader('LOADING...');
+                socket.emit('player_tutorial', {
+                    playerName: name,
+                    language: language,
+                    message: '(FIRST MESSAGE - Generate welcome message)',
+                    conversationHistory: [] // Tyhjä historia = ensimmäinen viesti
+                });
+            }, 500);
+        }
+
+        // 2. AND THEN - Käsittelee sekä pelaajan inputin että pyytää uuden ohjeen
+        function andThen() {
+            const input = document.getElementById('message-input');
+            const playerInput = input.value.trim();
+            
+            if (inTutorial) {
+                // TUTORIAL MODE: Käytä tutorial agentia
+                if (playerInput) {
+                    addMessage('outgoing', playerInput, 'Juuri nyt');
+                    tutorialHistory.push({ role: 'player', content: playerInput });
+                    input.value = '';
+                }
+                
+                startLoader();
+                
+                // Lähetä tutorial agentille keskusteluhistorian kanssa
+                socket.emit('player_tutorial', {
+                    playerName: playerName,
+                    language: playerLanguage,
+                    message: playerInput || 'Jatka',
+                    conversationHistory: tutorialHistory
+                });
+            } else {
+                // NORMAL GAME MODE: Käytä prompt agentia
+                if (!myCharId) return alert("Odota hahmon latautumista...");
+                
+                // Jos pelaaja kirjoitti jotain, lähetä se ensin
+                if (playerInput) {
+                    addMessage('outgoing', playerInput, 'Juuri nyt');
+                    socket.emit('player_action', { charId: myCharId, action: playerInput });
+                    input.value = '';
+                }
+                
+                // Näytä loading-animaatio
+                startLoader();
+                
+                // Pyydä uusi ohje (joka ottaa huomioon juuri lähetetyn inputin jos oli)
+                socket.emit('trigger_scene', { charId: myCharId, playerInput: playerInput });
+            }
+
+            // Timeout fallback jos serveri ei vastaa
+            setTimeout(() => {
+                stopLoader();
+            }, 30000);
+        }
+
+        // APUFUNKTIOT
+        
+        // Renderoi markdown -> HTML
+        function renderMarkdown(text) {
+            if (typeof marked !== 'undefined') {
+                // Marked.js on ladattu
+                return marked.parse(text);
+            }
+            // Fallback: Yksinkertainen **bold** ja *italic* käsittely
+            return text
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+        }
+        
+        function addMessage(type, content, timestamp) {
+            const feed = document.getElementById('message-feed');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${type}`;
+            
+            // Check if content has dramaturgical structure [DYNAMIC: X | FORMAT: Y]
+            let processedContent = content;
+            const dramaturgMatch = content.match(/\*\*\[DYNAMIC:\s*([^\|]+)\s*\|\s*FORMAT:\s*([^\]]+)\]\*\*/);
+            
+            if (dramaturgMatch) {
+                const dynamic = dramaturgMatch[1].trim();
+                const format = dramaturgMatch[2].trim();
+                
+                // Remove the tag from content and add it as a header
+                processedContent = content.replace(dramaturgMatch[0], '').trim();
+                
+                // Add dramaturgical context header
+                const dramaturgHeader = `<div style="background: #0a3a0a; padding: 8px; margin-bottom: 10px; border-left: 3px solid #0f0; font-size: 0.85rem;">
+                    <strong style="color: #6bff6b;">🎭 ${dynamic}</strong> 
+                    <span style="color: #888;"> | </span>
+                    <em style="color: #aaffaa;">${format}</em>
+                </div>`;
+                
+                // Renderoi markdown
+                const renderedContent = renderMarkdown(processedContent);
+                
+                msgDiv.innerHTML = `
+                    <div class="timestamp">${timestamp}</div>
+                    ${dramaturgHeader}
+                    <div class="content">${renderedContent}</div>
+                `;
+            } else {
+                // Normal message without dramaturgical structure
+                const renderedContent = renderMarkdown(processedContent);
+                msgDiv.innerHTML = `
+                    <div class="timestamp">${timestamp}</div>
+                    <div class="content">${renderedContent}</div>
+                `;
+            }
+            
+            feed.appendChild(msgDiv);
+            
+            // Auto-scroll uusimpaan viestiin (alas)
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        // === PELAAJAN ASETUKSET ===
+        function setPlayStyle(style) {
+            document.getElementById('play-style-input').value = style;
+        }
+
+        function savePlayerSettings() {
+            if (!myCharId) {
+                alert('Odota että hahmosi on ladattu!');
+                return;
+            }
+            
+            const language = document.getElementById('player-language').value;
+            const playStyle = document.getElementById('play-style-input').value.trim();
+            
+            socket.emit('update_player_meta', {
+                charId: myCharId,
+                meta: {
+                    language: language,
+                    playStyle: playStyle
+                }
+            });
+            
+            alert('✅ Asetukset tallennettu!');
+            document.getElementById('player-settings').style.display = 'none';
+        }
+
+        // SOCKET KUUNTELIJAT
+
+        // Kun tutorial vastaus saapuu
+        socket.on('tutorial_response', (data) => {
+            stopLoader();
+            
+            console.log('Tutorial response received:', data);
+            
+            // Näytä vastaus (jos on tekstivastaus)
+            if (data.response) {
+                addMessage('incoming', data.response, new Date().toLocaleTimeString('fi-FI'));
+                tutorialHistory.push({ role: 'assistant', content: data.response });
+            }
+            
+            // Tarkista halutaanko luoda hahmo (tool-pohjainen)
+            if (data.createCharacter === true) {
+                console.log('🎭 Creating character via tool call');
+                inTutorial = false;
+                startLoader('LUODAAN HAHMOA...');
+                
+                // Lähetä hahmon luontipyyntö historialla
+                socket.emit('create_character', {
+                    playerName: playerName,
+                    language: playerLanguage,
+                    tutorialHistory: tutorialHistory
+                });
+            }
+        });
+        
+        // Kun hahmo on luotu
+        socket.on('character_created', (data) => {
+            const charData = data.character;
+            myCharId = charData.id;
+            inTutorial = false; // Varmista että tutorial mode pois päältä
+            tutorialHistory = []; // Varmista että historia tyhjä
+            
+            // Päivitä nimi
+            document.getElementById('char-name').innerText = charData.name;
+            
+            // Update character info with memories
+            updateCharacterInfo(charData);
+            
+            // Lataa player metadata jos olemassa
+            if (charData.playerMeta) {
+                document.getElementById('player-language').value = charData.playerMeta.language || 'fi';
+                document.getElementById('play-style-input').value = charData.playerMeta.playStyle || '';
+            }
+            
+            // Pysäytä character generation loader
+            stopLoader();
+            
+            console.log('✅ Hahmo luotu:', charData.name);
+        });
+        
+        // Vanha tuki (jos jokin vanha koodi käyttää)
+        socket.on('your_identity', (charData) => {
+            myCharId = charData.id;
+            document.getElementById('char-name').innerText = charData.name;
+            updateCharacterInfo(charData);
+            if (charData.playerMeta) {
+                document.getElementById('player-language').value = charData.playerMeta.language || 'fi';
+                document.getElementById('play-style-input').value = charData.playerMeta.playStyle || '';
+            }
+            stopLoader();
+        });
+
+        // Kun player metadata päivittyy
+        socket.on('meta_updated', (data) => {
+            if (data.charId === myCharId) {
+                document.getElementById('player-language').value = data.meta.language;
+                document.getElementById('play-style-input').value = data.meta.playStyle;
+                console.log('✅ Asetukset päivitetty');
+            }
+        });
+        
+        // Kun hahmo päivittyy (uusi kognitiivinen muisti-arkkitehtuuri)
+        socket.on('character_updated', (data) => {
+            if (data.charId === myCharId && data.character) {
+                console.log('🔄 Hahmo päivitetty (memory extraction)');
+                
+                // Update character info with new memories
+                updateCharacterInfo(data.character);
+                
+                // Show notification
+                const notif = document.createElement('div');
+                notif.style.cssText = 'position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #0a3a0a; color: #0f0; padding: 10px 20px; border: 2px solid #0f0; z-index: 9999; font-weight: bold;';
+                notif.textContent = '🧠 Muistosi päivittyivät';
+                document.body.appendChild(notif);
+                setTimeout(() => notif.remove(), 3000);
+            }
+        });
+        
+        // Update character info display
+        function updateCharacterInfo(character) {
+            let charInfoHtml = renderMarkdown(character.description);
+            
+            // Add key moments
+            if (character.memory?.key_moments && character.memory.key_moments.length > 0) {
+                const moments = character.memory.key_moments
+                    .slice(-5) // Show last 5
+                    .map(m => `<li>${m.content}</li>`)
+                    .join('');
+                charInfoHtml += `\n\n<h3 style="color: #0ff; margin-top: 15px;">🧠 Tärkeitä muistoja:</h3>\n<ul style="color: #0a0;">${moments}</ul>`;
+            }
+            
+            // Add relationships
+            if (character.memory?.relationships && Object.keys(character.memory.relationships).length > 0) {
+                const rels = Object.entries(character.memory.relationships)
+                    .map(([targetId, rel]) => {
+                        const intensityBar = '█'.repeat(rel.intensity) + '░'.repeat(5 - rel.intensity);
+                        return `<li><strong style="color: #0ff;">${targetId}</strong>: ${rel.value} ${intensityBar} <em style="color: #888;">${rel.notes}</em></li>`;
+                    })
+                    .join('');
+                charInfoHtml += `\n\n<h3 style="color: #0ff; margin-top: 15px;">👥 Suhteet:</h3>\n<ul style="color: #0a0;">${rels}</ul>`;
+            }
+            
+            document.getElementById('character-info').innerHTML = charInfoHtml;
+        }
+
+        // Vanha world.json tuki (deprecated, mutta pidetään yhteensopivuutena)
+        socket.on('world_update', (world) => {
+            if (myCharId && world.characters && world.characters[myCharId]) {
+                const myChar = world.characters[myCharId];
+                const charInfoElement = document.getElementById('character-info');
+                const newDescription = renderMarkdown(myChar.description);
+                if (charInfoElement.innerHTML !== newDescription) {
+                    charInfoElement.innerHTML = newDescription;
+                    console.log('🔄 Hahmokuvaus päivitetty (legacy world_update)');
+                }
+            }
+        });
+
+        // Kun uusi story-merkintä saapuu
+        socket.on('story_update', (storyEntry) => {
+            // Näytä vain omat viestit
+            if (storyEntry.targetId === myCharId) {
+                // Tarkista onko pelaajan oma toiminta (ei näytetä uudelleen)
+                if (!storyEntry.playerSubmitted) {
+                    addMessage('incoming', storyEntry.instruction, storyEntry.timestamp);
+                    
+                    // Pysäytä loader kun vastaus saapuu
+                    stopLoader();
+                }
+            }
+        });
+
+        // Alkusynkkaus (palauta historia jos refreshataan)
+        socket.on('sync_state', (data) => {
+            if (myCharId) {
+                data.story.filter(entry => entry.targetId === myCharId).forEach(entry => {
+                    const type = entry.playerSubmitted ? 'outgoing' : 'incoming';
+                    addMessage(type, entry.instruction.replace('[PELAAJAN TOIMINTA] ', ''), entry.timestamp);
+                });
+            }
+        });
+
+        // Toggle hahmokuvaus
+        function toggleCharacterInfo() {
+            const charInfo = document.getElementById('character-info');
+            const toggleBtn = document.getElementById('toggle-char-info');
+            
+            if (charInfo.classList.contains('collapsed')) {
+                charInfo.classList.remove('collapsed');
+                toggleBtn.innerText = 'V';
+            } else {
+                charInfo.classList.add('collapsed');
+                toggleBtn.innerText = '^';
+            }
+        }
+
+        // Enter lähettää viestin (Shift+Enter = uusi rivi)
+        document.addEventListener('DOMContentLoaded', () => {
+            // Join button
+            const joinBtn = document.getElementById('join-btn');
+            if (joinBtn) {
+                joinBtn.addEventListener('click', joinGame);
+            }
+            
+            // And then button
+            const andThenBtn = document.getElementById('and-then-btn');
+            if (andThenBtn) {
+                andThenBtn.addEventListener('click', andThen);
+            }
+            
+            // Toggle character info button
+            const toggleCharBtn = document.getElementById('toggle-char-info');
+            if (toggleCharBtn) {
+                toggleCharBtn.addEventListener('click', toggleCharacterInfo);
+            }
+            
+            // Settings button
+            const settingsBtn = document.getElementById('settings-btn');
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', () => {
+                    const settings = document.getElementById('player-settings');
+                    settings.style.display = settings.style.display === 'none' ? 'block' : 'none';
+                });
+            }
+            
+            // Message input
+            const input = document.getElementById('message-input');
+            if (input) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        andThen();
+                    }
+                });
+            }
+            
+            // Username input Enter = liity
+            const username = document.getElementById('username');
+            if (username) {
+                username.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        joinGame();
+                    }
+                });
+            }
+        });
+
+    </script>
+</body>
+</html>

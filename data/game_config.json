@@ -1,0 +1,34 @@
+{
+  "setting": "Murhapeli 1920-luvun kartanossa, jossa vieraat ovat loukussa myrskyn vuoksi. Yksi vieraista on löytynyt murhattuna. Kaikki ovat epäiltyjä. Kaikilla on salaisuuksia.",
+  "currentPhase": {
+    "name": "Alku",
+    "description": "Peli alkaa"
+  },
+  "availableRelationships": [
+    "trust",
+    "suspect",
+    "alliance",
+    "rivalry",
+    "fear",
+    "romantic"
+  ],
+  "physicalPropsGuidance": "Items are symbolic. Physical props serve as dramatic focal points - what matters is who is seen handling them and when.",
+  "themes": [
+    "betrayal",
+    "secrets",
+    "family ties",
+    "class conflict",
+    "greed"
+  ],
+  "gameTimer": {
+    "mode": "infinite",
+    "totalMinutes": 120,
+    "startTime": null,
+    "endTime": null
+  },
+  "autoPhaseCheck": {
+    "enabled": false,
+    "intervalMinutes": 15,
+    "lastCheck": null
+  }
+}

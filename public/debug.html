@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Prompts - LLM Inspector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            color: #e0e0e0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            color: #61dafb;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .controls input,
+        .controls select,
+        .controls button {
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        .controls input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .controls button {
+            background: #61dafb;
+            color: #1e1e2e;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .controls button:hover {
+            background: #4fc3dc;
+            transform: translateY(-2px);
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: rgba(97, 218, 251, 0.1);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(97, 218, 251, 0.3);
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            color: #61dafb;
+            font-weight: bold;
+        }
+
+        .entry {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+
+        .entry:hover {
+            border-color: rgba(97, 218, 251, 0.5);
+            box-shadow: 0 5px 20px rgba(97, 218, 251, 0.2);
+        }
+
+        .entry-header {
+            background: rgba(97, 218, 251, 0.1);
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .entry-header:hover {
+            background: rgba(97, 218, 251, 0.15);
+        }
+
+        .entry-title {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex: 1;
+        }
+
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge.scene { background: #4caf50; color: white; }
+        .badge.character { background: #2196f3; color: white; }
+        .badge.phase { background: #ff9800; color: white; }
+        .badge.unknown { background: #9e9e9e; color: white; }
+
+        .entry-meta {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .toggle-icon {
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+
+        .entry.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .entry-content {
+            padding: 20px;
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s, padding 0.3s;
+        }
+
+        .entry.collapsed .entry-content {
+            max-height: 0;
+            padding: 0 20px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            color: #61dafb;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            padding: 15px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .metadata {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .metadata-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 3px solid #61dafb;
+        }
+
+        .metadata-item .key {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .metadata-item .val {
+            color: #e0e0e0;
+            font-size: 13px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #61dafb;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+            font-size: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .entry-title {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .controls input,
+            .controls select,
+            .controls button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Debug Prompts Inspector</h1>
+            <p>LLM-ohjattu pelin prompt-analyysi ja debuggaus</p>
+        </header>
+
+        <div class="controls">
+            <input type="text" id="searchInput" placeholder="Hae merkkijonoa prompteista tai vastauksista...">
+            <select id="filterType">
+                <option value="">Kaikki tyypit</option>
+                <option value="scene_generation">Scene Generation</option>
+                <option value="character_generation">Character Generation</option>
+                <option value="phase_analysis">Phase Analysis</option>
+            </select>
+            <select id="filterChar">
+                <option value="">Kaikki hahmot</option>
+            </select>
+            <button onclick="refreshData()">🔄 Päivitä</button>
+            <button onclick="toggleAll()">↕️ Avaa/Sulje kaikki</button>
+        </div>
+
+        <div class="stats" id="stats"></div>
+
+        <div id="loading" class="loading">Ladataan debug-dataa...</div>
+        <div id="entries"></div>
+        <div id="noResults" class="no-results" style="display: none;">
+            Ei tuloksia suodattimilla.
+        </div>
+    </div>
+
+    <script>
+        let allEntries = [];
+        let allCollapsed = false;
+        let openEntries = new Set();
+
+        async function loadData() {
+            try {
+                // Tallenna avointen merkintöjen tila ennen päivitystä
+                saveOpenState();
+                
+                const response = await fetch('/api/debug-prompts');
+                allEntries = await response.json();
+                
+                // Uusin ensin
+                allEntries.reverse();
+                
+                populateFilters();
+                updateStats();
+                renderEntries(allEntries);
+                
+                // Palauta avoimet merkinnät
+                restoreOpenState();
+                
+                document.getElementById('loading').style.display = 'none';
+            } catch (error) {
+                document.getElementById('loading').innerHTML = '❌ Virhe ladattaessa dataa: ' + error.message;
+            }
+        }
+
+        function saveOpenState() {
+            openEntries.clear();
+            document.querySelectorAll('.entry:not(.collapsed)').forEach(entry => {
+                const index = parseInt(entry.id.replace('entry-', ''));
+                openEntries.add(index);
+            });
+        }
+
+        function restoreOpenState() {
+            openEntries.forEach(index => {
+                const entry = document.getElementById(`entry-${index}`);
+                if (entry) {
+                    entry.classList.remove('collapsed');
+                }
+            });
+        }
+
+        function populateFilters() {
+            const characters = new Set();
+            allEntries.forEach(entry => {
+                if (entry.characterName && entry.characterName !== 'N/A') {
+                    characters.add(entry.characterName);
+                }
+            });
+
+            const filterChar = document.getElementById('filterChar');
+            filterChar.innerHTML = '<option value="">Kaikki hahmot</option>';
+            [...characters].sort().forEach(char => {
+                const option = document.createElement('option');
+                option.value = char;
+                option.textContent = char;
+                filterChar.appendChild(option);
+            });
+        }
+
+        function updateStats() {
+            const stats = {
+                total: allEntries.length,
+                scene: allEntries.filter(e => e.promptType === 'scene_generation').length,
+                character: allEntries.filter(e => e.promptType === 'character_generation').length,
+                world: allEntries.filter(e => e.promptType === 'world_analysis').length,
+                charAnalysis: allEntries.filter(e => e.promptType === 'character_analysis').length,
+                phase: allEntries.filter(e => e.promptType === 'phase_analysis').length
+            };
+
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card">
+                    <div class="label">Yhteensä</div>
+                    <div class="value">${stats.total}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Kohtaukset</div>
+                    <div class="value">${stats.scene}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Hahmot</div>
+                    <div class="value">${stats.character}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">World Builder</div>
+                    <div class="value">${stats.world}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Char Builder</div>
+                    <div class="value">${stats.charAnalysis}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Dramaturg</div>
+                    <div class="value">${stats.phase}</div>
+                </div>
+            `;
+        }
+
+        function renderEntries(entries) {
+            const container = document.getElementById('entries');
+            const noResults = document.getElementById('noResults');
+
+            if (entries.length === 0) {
+                container.innerHTML = '';
+                noResults.style.display = 'block';
+                return;
+            }
+
+            noResults.style.display = 'none';
+            container.innerHTML = entries.map((entry, index) => {
+                const badgeClass = entry.promptType.includes('scene') ? 'scene' :
+                                   entry.promptType.includes('character_generation') ? 'character' :
+                                   entry.promptType.includes('world') ? 'scene' :
+                                   entry.promptType.includes('character_analysis') ? 'character' :
+                                   entry.promptType.includes('phase') ? 'phase' : 'unknown';
+
+                const metadata = entry.metadata || {};
+                const metadataHTML = Object.keys(metadata).length > 0 ? `
+                    <div class="metadata">
+                        ${Object.entries(metadata).map(([key, val]) => `
+                            <div class="metadata-item">
+                                <div class="key">${key}</div>
+                                <div class="val">${typeof val === 'object' ? JSON.stringify(val) : val}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : '';
+
+                return `
+                    <div class="entry collapsed" id="entry-${index}">
+                        <div class="entry-header" onclick="toggleEntry(${index})">
+                            <div class="entry-title">
+                                <span class="badge ${badgeClass}">${entry.promptType}</span>
+                                <strong>${entry.characterName}</strong>
+                                <span class="entry-meta">${new Date(entry.timestamp).toLocaleString('fi-FI')}</span>
+                            </div>
+                            <div class="toggle-icon">▼</div>
+                        </div>
+                        <div class="entry-content">
+                            ${metadataHTML}
+                            <div class="section">
+                                <div class="section-title">📝 Prompt</div>
+                                <div class="code-block">${escapeHtml(entry.prompt)}</div>
+                            </div>
+                            <div class="section">
+                                <div class="section-title">💬 Response</div>
+                                <div class="code-block">${escapeHtml(entry.response)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleEntry(index) {
+            const entry = document.getElementById(`entry-${index}`);
+            entry.classList.toggle('collapsed');
+            
+            // Päivitä avointen merkintöjen tila
+            if (entry.classList.contains('collapsed')) {
+                openEntries.delete(index);
+            } else {
+                openEntries.add(index);
+            }
+        }
+
+        function toggleAll() {
+            allCollapsed = !allCollapsed;
+            document.querySelectorAll('.entry').forEach(entry => {
+                if (allCollapsed) {
+                    entry.classList.add('collapsed');
+                } else {
+                    entry.classList.remove('collapsed');
+                }
+            });
+        }
+
+        function filterEntries() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const typeFilter = document.getElementById('filterType').value;
+            const charFilter = document.getElementById('filterChar').value;
+
+            const filtered = allEntries.filter(entry => {
+                const matchSearch = !searchTerm || 
+                    entry.prompt.toLowerCase().includes(searchTerm) ||
+                    entry.response.toLowerCase().includes(searchTerm) ||
+                    entry.characterName.toLowerCase().includes(searchTerm);
+
+                const matchType = !typeFilter || entry.promptType === typeFilter;
+                const matchChar = !charFilter || entry.characterName === charFilter;
+
+                return matchSearch && matchType && matchChar;
+            });
+
+            renderEntries(filtered);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function refreshData() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('entries').innerHTML = '';
+            loadData();
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', filterEntries);
+        document.getElementById('filterType').addEventListener('change', filterEntries);
+        document.getElementById('filterChar').addEventListener('change', filterEntries);
+
+        // Lataa data sivun latautuessa
+        loadData();
+
+        // Auto-refresh joka 30 sekuntia
+        setInterval(() => {
+            console.log('Auto-refresh...');
+            loadData();
+        }, 30000);
+    </script>
+</body>
+</html>
