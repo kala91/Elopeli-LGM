@@ -1,5 +1,17 @@
 # Quick Start Guide
 
+> Pikaopas Elopeli-LGM digitaaliseen LARP-moottoriin
+
+## 📋 Sisällysluettelo
+
+1. [Pelaajan näkökulma](#pelaajan-näkökulma)
+2. [Game Masterin näkökulma](#game-masterin-näkökulma)
+3. [Tekninen setup](#tekninen-setup)
+4. [Testaus](#testaus)
+5. [Ongelmien ratkaisu](#ongelmien-ratkaisu)
+
+---
+
 ## Pelaajan näkökulma
 
 ### 1. Liity peliin
@@ -173,45 +185,157 @@ Pitäisi näkyä:
 
 ## Ongelmien ratkaisu
 
-### Palvelin ei käynnisty
+### ❌ Palvelin ei käynnisty
 
+**Ongelma:** `Error: listen EADDRINUSE: address already in use :::3000`
+
+**Ratkaisu:**
 ```bash
-# Tarkista portti
-lsof -i :3000
+# Tarkista mikä prosessi käyttää porttia 3000
+lsof -i :3000  # Mac/Linux
+netstat -ano | findstr :3000  # Windows
 
-# Tapa prosessi
-kill -9 [PID]
+# Tapa prosessi tai käytä eri porttia
+PORT=3001 npm start
 ```
 
-### Kielimalli ei vastaa
+### ❌ Kielimalli ei vastaa
 
+**Ongelma:** "Tekoäly vaikeni (Virhe yhteydessä...)"
+
+**Ratkaisut:**
+
+1. **OpenRouter:**
 ```bash
-# Tarkista .env
-cat .env
+# Tarkista että .env sisältää oikean API-avaimen
+cat .env | grep OPENROUTER_API_KEY
 
-# Testaa API-avain (OpenRouter)
-curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+# Testaa API-avainta
+curl -H "Authorization: Bearer YOUR_KEY_HERE" \
   https://openrouter.ai/api/v1/models
-
-# Testaa Ollama
-curl http://localhost:11434/api/tags
 ```
 
-### Pelaaja ei saa promptia
-
-1. Avaa Debug-näkymä
-2. Tarkista konsoli-virheet
-3. Katso onko hahmo luotu (`data/characters/`)
-4. Katso onko story_recent päivittynyt (`data/story_recent.json`)
-
-### Memory Extractor ei toimi
-
+2. **Ollama:**
 ```bash
-# Tarkista story_recent.json
-cat data/story_recent.json
+# Tarkista että Ollama on käynnissä
+curl http://localhost:11434/api/tags
 
-# Pitäisi olla vähintään 5 entrya TAI yksi playerSubmitted: true
+# Jos ei vastaa, käynnistä Ollama
+ollama serve
+
+# Lataa malli jos puuttuu
+ollama pull gemma2
 ```
+
+### ❌ Pelaaja ei saa promptia
+
+**Ratkaisuvaiheet:**
+
+1. **Varmista että peli on alustettu:**
+   - GM:n pitää painaa "Start Game" ennen kuin pelaajat voivat liittyä
+
+2. **Tarkista että hahmo on luotu:**
+```bash
+ls -la data/characters/
+# Pitäisi näkyä pelaajan_nimi.json
+```
+
+3. **Tarkista konsoli-virheet:**
+   - Avaa selaimen Developer Tools (F12)
+   - Katso Console-välilehteä
+
+4. **Tarkista story_recent:**
+```bash
+cat data/story_recent.json
+# Pitäisi sisältää entries-taulukon
+```
+
+### ❌ Memory Extractor ei päivitä muisteja
+
+**Syy:** Ekstraktointi tapahtuu vain:
+- Joka 5. promptin jälkeen TAI
+- Kun pelaaja raportoi toiminnon (playerSubmitted: true)
+
+**Tarkista:**
+```bash
+# Katso onko story_recent.json päivittynyt
+cat data/story_recent.json | grep playerSubmitted
+
+# Katso onko character-tiedostot päivittyneet
+cat data/characters/pelaaja.json | grep key_moments
+```
+
+### ❌ Hahmonluonti ei onnistu
+
+**Ratkaisut:**
+
+1. **Tarkista että nimi on kelvollinen:**
+   - Max 50 merkkiä
+   - Ei erikoismerkkejä (paitsi -, _, .)
+
+2. **Tarkista että data/characters/ -kansio on olemassa:**
+```bash
+mkdir -p data/characters
+```
+
+3. **Tarkista että ei ole jo samalla nimellä olevaa hahmoa:**
+```bash
+ls -la data/characters/
+# Jos löytyy, poista tai käytä eri nimeä
+```
+
+### 🔧 Debug-näkymän käyttö
+
+Avaa http://localhost:3000/debug.html nähdäksesi:
+- Kaikki LLM-promptit ja vastaukset
+- Viimeisimmät 100 API-kutsua
+- Aikaleimoineen ja metatiedot
+
+Hyödyllinen kun haluat:
+- Ymmärtää mitä LLM sai promptina
+- Debugata miksi tietty prompti ei toiminut
+- Optimoida prompteja
+
+### 📊 Tiedostorakenne ongelmatilanteiden selvitykseen
+
+```
+data/
+├── game_config.json      # Jos peli ei käynnisty, tarkista tämä
+├── story_recent.json     # Jos promptit eivät näy, tarkista tämä
+├── debug_prompts.json    # Jos LLM ei vastaa, katso tämä
+└── characters/           # Jos hahmot eivät päivity, tarkista nämä
+    ├── pelaaja1.json
+    └── pelaaja2.json
+```
+
+### 💡 Yleiset vinkit
+
+1. **Käynnistä peli uudelleen puhtaalta pöydältä:**
+```bash
+# Poista vanhat tiedostot
+rm -rf data/characters/*.json
+rm data/story_recent.json
+rm data/game_config.json
+
+# Käynnistä palvelin uudelleen
+npm start
+```
+
+2. **Käytä kehitystilaa automaattiseen uudelleenkäynnistykseen:**
+```bash
+npm run dev  # Käyttää Node.js --watch flagia
+```
+
+3. **Tarkista lokitiedot:**
+   - Palvelimen konsoli näyttää kaikki tapahtumat
+   - Etsi emoji-ikoneja helpottaaksesi lukemista:
+     - 🎮 = Game Master -toiminnot
+     - 👋 = Pelaajat liittyvät
+     - 🎭 = Promptien generointi
+     - 🧠 = Muistin ekstraktointi
+     - ❌ = Virheet
+
+---
 
 ## Seuraavat askeleet
 
