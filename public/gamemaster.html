@@ -391,6 +391,7 @@
             
             if (remaining <= 0) {
                 document.getElementById('time-remaining').textContent = '00:00';
+                document.getElementById('time-display').textContent = 'Aika loppui';
                 clearInterval(timerInterval);
                 alert('⏰ Peli-aika loppui!');
                 return;
@@ -398,8 +399,10 @@
             
             const minutes = Math.floor(remaining / 60000);
             const seconds = Math.floor((remaining % 60000) / 1000);
-            document.getElementById('time-remaining').textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            document.getElementById('time-remaining').textContent = timeStr;
+            document.getElementById('time-display').textContent = timeStr;
         }
 
         // === PHASE FUNKTIOT ===
@@ -461,7 +464,12 @@
             
             // Show selected tab
             document.getElementById('tab-' + tabName).classList.add('active');
-            event.target.classList.add('active');
+            
+            // Activate the clicked button
+            const buttons = document.querySelectorAll('.tab-btn');
+            if (tabName === 'overview') buttons[0].classList.add('active');
+            else if (tabName === 'control') buttons[1].classList.add('active');
+            else if (tabName === 'settings') buttons[2].classList.add('active');
         }
 
         // === GM NOTES FUNCTIONALITY ===

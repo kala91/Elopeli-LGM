@@ -790,7 +790,20 @@ io.on('connection', (socket) => {
     socket.on('gm_notes', (data) => {
         try {
             const { notes, timestamp } = data;
-            console.log('📝 GM Notes received:', notes);
+            
+            // Validate input
+            if (!notes || typeof notes !== 'string') {
+                return socket.emit('error', { message: 'Invalid GM notes' });
+            }
+            
+            // Sanitize and limit length
+            const sanitizedNotes = notes.trim().substring(0, 1000); // Max 1000 chars
+            
+            if (sanitizedNotes.length === 0) {
+                return socket.emit('error', { message: 'GM notes cannot be empty' });
+            }
+            
+            console.log('📝 GM Notes received:', sanitizedNotes.substring(0, 50) + '...');
 
             const gameConfig = loadGameConfig();
             
@@ -801,7 +814,7 @@ io.on('connection', (socket) => {
             
             // Add new note
             gameConfig.gmNotes.push({
-                content: notes,
+                content: sanitizedNotes,
                 timestamp: timestamp || new Date().toISOString()
             });
             
