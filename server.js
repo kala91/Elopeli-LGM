@@ -161,8 +161,9 @@ async function processMemoryExtraction(entry) {
         const gameConfig = loadGameConfig();
         const recentStory = loadRecentStory();
         
-        // Get recent entries (last 5-10)
-        const entriesToAnalyze = recentStory.entries.slice(-10);
+        // Get recent entries (last 15 to ensure full context)
+        // Story buffer is max 20, so analyzing 15 gives us good coverage without overwhelming LLM
+        const entriesToAnalyze = recentStory.entries.slice(-15);
         
         // Get all participant character IDs from recent entries
         const participantIds = [...new Set(
@@ -548,14 +549,16 @@ io.on('connection', (socket) => {
             const allCharacterIds = getAllCharacterIds();
             const existingCharacters = allCharacterIds.map(id => loadCharacter(id)).filter(c => c !== null);
             
+            // Get recent story for context
+            const recentStory = loadRecentStory();
+            
             // Get tutorial response (returns {response, toolCall})
-            // NOTE: Don't pass recentStory - tutorial only sees this player's conversationHistory
             const result = await tutorialAgent.handleTutorial(
                 playerName,
                 message,
                 gameConfig,
                 existingCharacters,
-                [], // No recent story for tutorial - only conversationHistory matters
+                recentStory.entries || [], // Pass recent story so new players can see what's happening
                 language || 'fi',
                 conversationHistory || [],
                 askLLM

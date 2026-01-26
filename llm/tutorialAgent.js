@@ -23,20 +23,22 @@ async function handleTutorial(playerName, playerQuestion, gameConfig, existingCh
     const themes = gameConfig.themes?.join(', ') || 'Ei teemoja';
     
     // List existing characters (if any)
+    // NOTE: Don't truncate - new players need to understand existing characters
     let existingCharsInfo = '';
     if (existingCharacters && existingCharacters.length > 0) {
         existingCharsInfo = '\n\nOLEMASSA OLEVAT HAHMOT:\n' +
-            existingCharacters.map(c => `- ${c.name}: ${c.description.substring(0, 100)}...`).join('\n');
+            existingCharacters.map(c => `- ${c.name}: ${c.description}`).join('\n');
     } else {
         existingCharsInfo = '\n\nEi vielä hahmoja pelissä. Olet ensimmäinen!';
     }
     
     // Recent story summary (if game has started)
+    // NOTE: Don't truncate - new players need full context to understand what's happening
     let storyInfo = '';
     if (recentStory && recentStory.length > 0) {
         const recentEvents = recentStory.slice(-5).map(e => {
             const charName = e.targetChar || 'Unknown';
-            const instruction = e.instruction.substring(0, 150);
+            const instruction = e.instruction;
             return `${charName}: ${instruction}`;
         }).join('\n- ');
         storyInfo = `\n\nVIIMEISIMMÄT TAPAHTUMAT (Who did what):\n- ${recentEvents}`;
