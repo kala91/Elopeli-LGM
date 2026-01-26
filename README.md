@@ -1,17 +1,17 @@
-# Digitaalinen Elopelimoottori
+# Digitaalinen LARP-moottori
 
-> AI-ohjattu LARP-pelimoottori - Luo improvisaatioteatteria teknologian avulla
+> AI-ohjattu improvisaatioroolipeli-alusta
 
-Digitaalinen peli-alusta joka orkestroi osallistujille dramaturgisesti koherenttia improvisaatio-peliä ja vuorovaikutusta.
+Digitaalinen alusta joka orkestroi osallistujille dramaturgisesti koherenttia improvisaatio-LARPpia.
 
 ## 🎯 Konsepti
 
 Tämä moottori yhdistää:
-- **Elopelin** (live-roolipeli) fyysisen läsnäolon
-- **Improvisaatioteatterin** spontaanin vuorovaikutuksen
+- **LARP:in** (Live Action Role Playing) fyysisen läsnäolon
+- **Improvisaatioteatterin** spontaanin vuorovaikutuksen  
 - **AI-ohjaajan** joka tukee ja rikastaa pelikokemusta
 
-Pelaajat eivät tarvitse esitietoja larppivasta tai teatterista - kaikki on "pelinä" jossa on selkeät tehtävät.
+Pelaajat eivät tarvitse esitietoja larppivasta - kaikki on "pelinä" jossa on selkeät tehtävät.
 
 ## 🚀 Pika-aloitus
 
@@ -26,15 +26,15 @@ npm install
 Luo `.env`-tiedosto:
 
 ```bash
-# Ollama (paikallinen)
-API_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gemma2
-
-# TAI OpenRouter (pilvi)
+# OpenRouter (pilvi, suositeltu)
 API_PROVIDER=openrouter
 OPENROUTER_API_KEY=your-key-here
 OPENROUTER_MODEL=google/gemma-3-27b-it:free
+
+# TAI Ollama (paikallinen)
+API_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=gemma2
 ```
 
 ### 3. Käynnistä palvelin
@@ -45,80 +45,58 @@ npm start
 
 Palvelin käynnistyy portissa 3000:
 
-- **Pelaajat**: http://localhost:3000/
+- **Etusivu**: http://localhost:3000/
+- **Pelaajat**: http://localhost:3000/playerclient.html
 - **Game Master**: http://localhost:3000/gamemaster.html
 - **Debug**: http://localhost:3000/debug.html
-
-## 📚 Dokumentaatio
-
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Arkkitehtuuri, tietovirta, suunnittelu
-- **[llm/README.md](llm/README.md)** - LLM-moduulien API-referenssi
-- **[data/systemprompt.md](data/systemprompt.md)** - Kielimallin ohjeet
 
 ## 🎮 Käyttö
 
 ### Pelaajana
 
-1. Avaa pelaajien linkki puhelimella/tabletilla
-2. Syötä nimesi - hahmo generoidaan automaattisesti
-3. Lue hahmokuvauksesi
-4. Paina "Ja sitten" kun olet valmis toimimaan
-5. Saat toimintapromtin - toimi sen mukaan fyysisessä tilassa
-6. (Valinnainen) Raportoi mitä tapahtui
-7. Toista - peli jatkuu niin kauan kuin haluat
+1. Avaa pelaajan linkki
+2. Syötä nimesi ja valitse kieli
+3. Keskustele tutorial agentin kanssa - kerro millaisen hahmon haluat
+4. Agentin luoma hahmo ilmestyy peliin
+5. Saat toimintaohjeita - toimi niiden mukaan fyysisessä tilassa
+6. Voit raportoida mitä tapahtui tai pyytää uuden ohjeen
+7. Peli jatkuu - muistisi ja suhteet päivittyvät automaattisesti
 
 ### Game Masterina
 
 1. Avaa GM-näkymä
-2. Valitse pelitemplaatti tai luo oma
+2. Valitse pelitemplaatti (data/game_library/)
 3. Käynnistä peli
 4. Seuraa pelaajia ja heidän promptejaan
-5. Aktivoi DramaturgBuilder analysoimaan pelin kulkua
-6. Säädä draaman kaarta tarvittaessa
+5. Analysoi draaman kulkua
 
-### Kehittäjänä
+## 📚 Dokumentaatio
 
-1. Avaa debug-näkymä
-2. Näet kaikki LLM:lle lähetetyt promptit
-3. Analysoi miten kielimalli vastaa
-4. Kehitä pelitemplaatteja ja ohjeita
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Arkkitehtuuri ja tietovirta
+- **[docs/taxonomy.md](docs/taxonomy.md)** - Dramaturgiset työvälineet (analyyttinen muistikirja)
 
-## �� Pelitemplaatit
+## 🔧 Pelitemplaatit
 
-Pelit määritellään yksinkertaisina Markdown-tiedostoissa:
-
-```markdown
-# Avaruusasema Kepler-7
-
-## Setting
-Vuosi 2247. Avaruusasema Kepler-7 kiertää aurinkokuntaa...
-
-## Character Prompt Template
-Luo avaruusaseman miehistön jäsen...
-
-## Scene Prompt Template
-Anna pelaajalle toimintaohje...
-```
+Pelit määritellään Markdown-tiedostoissa:
 
 Katso esimerkit [data/game_library/](data/game_library/):
 - **murhapeli.md** - Klassinen mysteeri
-- **hemulin_alushousut.md** - Kevyt komedia
-- **scifi_avaruusasema.md** - Sci-fi trilleri
+
 
 ## 🏗️ Ydinperiaate
 
-**Log-keskinen arkkitehtuuri:**
-- `logs.json` = Single source of truth (mitä on tapahtunut)
-- `world.json` = Dynaaminen tila (mitä on olemassa nyt)
-- Clientit = Näkymät dataan
-- LLM-moduulit = Työkaluja datan generointiin
+**Kognitiivinen muisti-arkkitehtuuri:**
+- Hahmot muistavat dramaturgisesti merkittävät hetket, eivät jokaista sanaa
+- `story_recent.json` - Circular buffer (max 20), lähihistoria
+- `characters/{charId}.json` - Hahmon muisti: key_moments + relationships
+- `game_config.json` - Pelin semanttiset raamit
 
-**Modulaariset LLM-roolit:**
-- **PromptBuilder** - Luo pelaajien toimintaohjeet
-- **WorldBuilder** - Tunnistaa uudet paikat, NPCt, esineet
-- **DramaturgBuilder** - Analysoi draaman kulun
-- **CharacterBuilder** - Päivittää hahmojen tietoja (tulossa)
-- **EngineRunner** - Päättää milloin aktivoidaan mikäkin
+**Oneshot LLM-agentit:**
+- **Tutorial Agent** - Opastaa uusia pelaajia, luo hahmot toiveiden mukaan
+- **Character Creator** - Generoi hahmot JSON-rakenteena
+- **Prompt Agent** - Luo pelaajien toimintaohjeet
+- **Memory Extractor** - Tunnistaa dramaturgisesti merkittävät hetket
+- **Dramaturg Agent** - Analysoi draaman kulun
 
 Lue lisää: [ARCHITECTURE.md](ARCHITECTURE.md)
 
@@ -126,101 +104,40 @@ Lue lisää: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ```
 .
-├── ARCHITECTURE.md             # Arkkitehtuuri-dokumentaatio
 ├── server.js                   # Pelimoottori (Socket.io + Express)
 ├── package.json
 ├── .env                        # Kielimalli-konfiguraatio
 │
-├── data/                       # Data-tiedostot
-│   ├── logs.json               # Pelin historia (single source of truth)
-│   ├── world.json              # Dynaaminen maailma
-│   ├── systemprompt.md         # LLM:n perusohjeistus
+├── data/
+│   ├── story_recent.json       # Circular buffer (max 20 entries)
+│   ├── game_config.json        # Pelin semanttiset raamit
+│   ├── systemprompt.md         # Dramaturgi-prompti
+│   ├── taxonomy.md             # Dramaturgiset työkalut
+│   ├── characters/             # Hahmojen muisti (JSON)
 │   └── game_library/           # Pelitemplaatit (Markdown)
 │
-├── llm/                        # Modulaariset LLM-työkalut
-│   ├── promptBuilder.js        # Luo toimintapromptit
-│   ├── worldBuilder.js         # Tunnista uudet elementit
-│   ├── dramaturgBuilder.js     # Analysoi draama
-│   ├── engineRunner.js         # Päätä aktivoinnit
-│   └── README.md               # API-referenssi
+├── llm/                        # Oneshot LLM-agentit
+│   ├── tutorialAgent.js        # Opastus + hahmonluonti
+│   ├── characterCreator.js     # Hahmon generointi
+│   ├── promptAgent.js          # Toimintaohjeet
+│   ├── memoryExtractor.js      # Muistin päivitys
+│   └── dramaturgAgent.js       # Draaman analyysi
 │
 └── public/                     # Käyttöliittymät
-    ├── index.html              # Pelaajan näkymä
-    ├── gamemaster.html         # GameMasterClient
-    └── debug.html              # Kehittäjän näkymä
+    ├── index.html              # Etusivu
+    ├── playerclient.html       # Pelaajan näkymä
+    ├── gamemaster.html         # GM-näkymä
+    └── debug.html              # Debug-näkymä
 ```
-
-## 🔧 Konfiguraatio
-
-### API Provider
-
-Moottori tukee useita kielimallipalveluita:
-
-```bash
-# Ollama (paikallinen)
-API_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=gemma2
-
-# OpenRouter (pilvi)
-API_PROVIDER=openrouter
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=google/gemma-3-27b-it:free
-WORLD_ANALYZER_MODEL=google/gemma-3-27b-it:free
-
-# FunctionGemma (päätöksenteko)
-ENABLE_FUNCTIONGEMMA=true
-FUNCTION_MODEL=functiongemma:latest
-```
-
-### Mallin valinta
-
-- **Laatukriittinen** - PromptBuilder, DramaturgBuilder (luova ajattelu)
-- **Kevyt** - WorldBuilder, CharacterBuilder (rakenteinen tunnistus)
 
 ## 🎨 Käyttötapaukset
 
 - **Koulut** - Historian elävöitys, sosiaalisten taitojen harjoittelu
-- **Museot ja kirjastot** - Paikkasidonnaiset elämykset
+- **Museot** - Paikkasidonnaiset elämykset
 - **Nuorisotyö** - Matalan kynnyksen roolipelit
 - **Työhyvinvointi** - Ryhmäytyminen, vuorovaikutus
 - **Tapahtumat** - Jatkuvat elämysasemat
 
-## 🚧 Kehitystilanne
+## 📝 Lisenssi
 
-**Prioriteetti 1 (Ydin toimii):**
-- ✅ Log-keskinen arkkitehtuuri
-- ✅ Modulaariset LLM-roolit
-- ✅ World Builder + context awareness
-- ✅ FunctionGemma decision making
-- ✅ Kielimalli yhtymäkohta
-- ⏳ Character Builder (tulossa)
-
-**Prioriteetti 2 (Optimointi):**
-- Relationship-based log filtering
-- Spatial filtering (saman paikan hahmot)
-- Temporal filtering (vain viimeinen 30 min)
-- Prompt caching
-
-**Prioriteetti 3 (Laajennukset):**
-- Loppu purku -pelitila (reflektointi)
-- Multi-kielituki (UI + LLM)
-- AR/QR-koodit fyysisiin paikkoihin
-- Analytiikka-dashboard GM:lle
-
-## 📖 Lisenssi
-
-(Määrittelemättä - lisää tähän projektisi lisenssi)
-
-## 👥 Yhteystiedot
-
-Projekti: Digitaalinen Elopelimoottori  
-Tekijä: Aleksi Höylä  
-Versio: 2.0 (Log-keskinen, Modulaarinen)
-
----
-
-**Lue lisää:**
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Syvällinen arkkitehtuuri-dokumentaatio
-- [llm/README.md](llm/README.md) - LLM-moduulien API-referenssi
-- [data/game_library/](data/game_library/) - Pelitemplaat esimerkit
+MIT License

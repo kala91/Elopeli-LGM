@@ -7,11 +7,11 @@
 Hahmot muistavat dramaturgisesti merkittävät hetket, eivät jokaista sanaa. Kuten ihmiset: tärkeintä on ydinkokemusten kulkeminen mukana.
 
 ```
-Pelaaja pyytää promptin → PromptAgent generoi toiminnon
+Pelaaja pyytää promptin → Prompt Agent generoi toiminnon
     ↓
 Dialogi tapahtuu → Tallennetaan story_recent.json
     ↓
-Extraction trigger (joka 5. tai player_input) → MemoryExtractor Agent
+Extraction trigger (joka 5. tai player_input) → Memory Extractor Agent
     ↓
 Parsii dramaturgisesti merkittävät hetket → key_moments + relationships
     ↓
@@ -74,13 +74,12 @@ Tallentaa hahmojen muistiin → data/characters/{charId}.json
 ```
 
 **Käyttö:**
-- PromptAgent: Viimeiset 3 key_moments + kaikki relationships → konteksti promptin rakentamiseen
-- MemoryExtractor Agent: Lisää uusia key_moments ja päivittää relationships
+- Prompt Agent: Viimeiset 3 key_moments + kaikki relationships → konteksti promptin rakentamiseen
+- Memory Extractor Agent: Lisää uusia key_moments ja päivittää relationships
 - Ei tallenneta jokaista dialogia - vain dramaturgisesti merkittävät hetket
 
 **Design philosophy:**
 Fiasco-tyylinen approach - relationships ovat arvoja (trust, romantic, suspect), ei konkreettisia muistoja. Antaa pelaajille tilaa tulkita ja mikropelaamiseen.
-
 
 ### 2. **data/game_config.json** - Pelin semanttiset raamit
 
@@ -98,514 +97,570 @@ Fiasco-tyylinen approach - relationships ovat arvoja (trust, romantic, suspect),
     "trust",
     "suspect", 
     "romantic",
-    "alliance",
-    "rivalry",
-    "fear"
-  ],
-  "physicalPropsGuidance": "Items are symbolic representations. A post-it note labeled 'weapon' serves as the murder weapon. What matters dramatically is who is seen handling it.",
-  "themes": ["betrayal", "secrets", "class conflict", "greed"],
-  "gameTimer": {
-    "mode": "infinite",
-    "totalMinutes": null
-  }
+    "fear",
+    "business"
+  ]
 }
 ```
 
 **Käyttö:**
-- Ladataan game_library/*.md template tiedostosta GM:n alustaessa pelin
-- PromptAgent: Setting + currentPhase → konteksti dramaturgiaan
-- MemoryExtractor Agent: availableRelationships → sallitut relationship-tyypit
-- DramaturgAgent: Themes → arvioi onko peli linjassa teemojen kanssa
+- Tutorial Agent: Setting → hahmojen luonti skenaarion mukaan
+- Prompt Agent: Setting + availableRelationships → semanttisesti pätevät promptit (sisältää inline dramaturgi-promptin)
+- Memory Extractor: availableRelationships → strukturoidaan suhteet oikein
 
-**Design philosophy:**
-Peli on "moduuli" - ei koodaa mechanics vaan määritellään semanttiset raamit. Relationships voivat olla murhadraamassa ["suspect", "alliance"], romansseissa ["romantic", "jealous", "protective"].
+### 3. **data/story_recent.json** - Circular buffer
 
-### 3. **data/story_recent.json** - Circular buffer lähihistorialle
-
-**Rooli:** Kevyt "mitä juuri tapahtui" -konteksti promptien rakentamiseen
+**Rooli:** Lähihistoria - mitä on tapahtunut viimeksi (max 20 entries)
 
 **Schema:**
 ```json
 {
-  "maxSize": 20,
   "entries": [
     {
-      "id": 1768565948358,
-      "timestamp": "14:19:08",
-      "targetChar": "jesse",
-      "targetId": "jesse",
-      "instruction": "[PELAAJA LIITTYI] jesse liittyi peliin.",
-      "playerJoined": true,
-      "playerSubmitted": false
+      "timestamp": "2026-01-23T14:23:12.000Z",
+      "character": "jesse",
+      "type": "action",
+      "instruction": "Walk to the library, pick up the mysterious letter on the desk",
+      "playerSubmitted": true
     },
     {
-      "id": 1768566114880,
-      "timestamp": "14:21:54",
-      "targetChar": "jesse",
-      "targetId": "jesse",
-      "instruction": "Tutki salainen käytävä. Raportoi mitä löydät...",
-      "playerJoined": false,
+      "timestamp": "2026-01-23T14:23:25.000Z",
+      "character": "jee",
+      "type": "action",
+      "instruction": "Approach Jesse in the library, ask about the letter",
       "playerSubmitted": false
     }
   ]
 }
 ```
 
-**Käyttö:**
-- PromptAgent: Viimeiset 5-10 entries → "mitä juuri tapahtui" konteksti
-- MemoryExtractor Agent: Viimeiset 5-10 entries → parsittava sisältö
-- Automaattinen ylläpito: kun entry #21 lisätään, entry #1 poistetaan
-- Ei arkistointia (demovaiheessa pelit max 30min)
+**Circular buffer logic:**
+- Max 20 entries (config: `STORY_RECENT_MAX_ENTRIES`)
+- Kun täyttyy → poistetaan vanhimmat
+- Ennen poistoa → Memory Extractor Agent ekstraktoi dramaturgisesti merkittävät hetket hahmojen muistiin
 
-**Design philosophy:**
-Ihmismäinen muisti - muistat mitä juuri tapahtui (20 viimeisintä), mutta pitkä historia on "tiivistetty" key_moments muotoon character-muistissa.
+**Käyttö:**
+- Prompt Agent: Viimeiset 5-10 entry → konteksti uuden promptin rakentamiseen
+- Tutorial Agent: Näyttää recent history kun pelaaja liittyy peliin
+- Memory Extractor: Käy läpi recent entries → ekstraktoi key_moments
+
+### 4. **data/game_library/** - Pelitemplaatit
+
+**Rooli:** Markdown-tiedostot jotka määrittävät pelin settingin, genre, relationshipit
+
+**Esimerkki (murhapeli.md):**
+```markdown
+# Kartanomurha
+
+## Setting
+1920-luvun kartano, myrsky, vieras murhattu...
+
+## Available Relationships
+- trust
+- suspect
+- romantic
+- fear
+- business
+
+## System Prompt
+(Dramaturgi-prompti tähän)
+
+## Taxonomy
+(Dramaturgiset työkalut tähän)
 ```
 
 **Käyttö:**
-- PromptBuilder: "Mitä hahmo voi kohdata?" - places, NPCs, items, muut hahmot
-- WorldBuilder: Päivittää elementtejä kun story.json:ssa mainitaan uusia
-- CharacterBuilder: Päivittää relationships ja secrets
-- GameMaster: Näkee kokonaisuuden ja voi ohjata
-- Pelaajat: Hahmon tiedot (description, relationships, secrets)
+- Game Master valitsee templaten
+- Moottori parsii Markdown → rakentaa game_config.json
+- Kaikki agentit käyttävät game_config:ia kontekstina
 
-**Tärkeä erottelu:**
-- `world.json` = Staattinen tila, muuttuu buildereilla
-- `story.json` = Dynaaminen historia, kasvaa jatkuvasti
-- `story.json` → EngineRunner → Builderit → world.json päivittyy
+## 🤖 LLM-agentit (Oneshot)
 
-### 3. **dramaturgy** - Ohjausnäkymä
-**Rooli:** Guideline PromptBuilderille - mihin suuntaan mennään  
-**Sisältö world.json:ssa:**
-```json
+Jokainen agentti on oneshot-funktio - kutsutaan kerran, palauttaa vastauksen, ei pidä tilaa.
+
+### 1. **Tutorial Agent** (`llm/tutorialAgent.js`)
+
+**Rooli:** Opastaa uutta pelaajaa keskustelun avulla ennen hahmonluontia
+
+**Input:**
+```javascript
 {
-  "dramaturgy": {
-    "tension": 6,
-    "pacing": "Keskivaihe - jännite kasvaa, liittoumat murtuvat",
-    "suggestedDynamics": ["konflikti", "petos"],
-    "plotTwists": ["Sabotööri paljastuu?"],
-    "lastAnalysis": "2025-01-09T15:30:00.000Z"
+  gameConfig: {...},
+  conversationHistory: [{role: "assistant", content: "..."}, {role: "user", content: "..."}],
+  language: "fi"
+}
+```
+
+**Output:**
+```javascript
+{
+  message: "Tervetuloa peliin! Millaisen hahmon haluaisit pelata?",
+  shouldCreateCharacter: false
+}
+// TAI
+{
+  message: "Loistavaa! Luon sinulle hahmon joka...",
+  shouldCreateCharacter: true,
+  characterWishes: "Nuori poliisi, joka tutkii murhaa ensimmäistä kertaa..."
+}
+```
+
+**Prompt-rakenne:**
+```
+YOUR ROLE: You guide new players...
+GAME INFO: Setting, relationships...
+CONVERSATION: Previous messages...
+YOUR TASK: If player ready → <TOOL_CALL>{"tool":"createCharacter","playerWishes":"..."}</TOOL_CALL>
+```
+
+**Tool call detection:**
+```javascript
+if (response.includes('<TOOL_CALL>')) {
+  const toolCall = JSON.parse(/* extract JSON */);
+  return {
+    shouldCreateCharacter: true,
+    characterWishes: toolCall.playerWishes,
+    message: response.split('<TOOL_CALL>')[0]
+  };
+}
+```
+
+### 2. **Character Creator** (`llm/characterCreator.js`)
+
+**Rooli:** Luo hahmon pelaajan toiveiden mukaan
+
+**Input:**
+```javascript
+{
+  gameConfig: {...},
+  characterWishes: "Nuori poliisi joka tutkii murhaa ensimmäistä kertaa",
+  existingCharacters: [{name: "Jesse", relationships: {...}}],
+  language: "fi"
+}
+```
+
+**Output:**
+```javascript
+{
+  description: "Nuori, kunnianhimoinen poliisi...",
+  personality: ["utelias", "empaattinen", "jännittynyt"],
+  goals: ["Selvitä murha", "Todista olevansa pätevä"],
+  relationships: [
+    {targetCharName: "Jesse", value: "suspect", intensity: 2, reason: "Jesse näyttää peittelevän jotain"}
+  ]
+}
+```
+
+**Prompt-rakenne:**
+```
+CREATE CHARACTER
+Game Setting: ...
+Player Wishes: ...
+Existing Characters: Jesse, Jee, Inspector
+
+Output JSON format:
+{
+  "description": "...",
+  "personality": ["trait1", "trait2"],
+  "goals": ["goal1", "goal2"],
+  "relationships": [{"targetCharName": "Jesse", "value": "suspect", ...}]
+}
+```
+
+### 3. **Prompt Agent** (`llm/promptAgent.js`)
+
+**Rooli:** Generoi pelaajalle seuraava toimintaohje
+
+**Input:**
+```javascript
+{
+  gameConfig: {...},
+  character: {name, description, memory: {key_moments, relationships}},
+  recentStory: [{character: "jesse", instruction: "..."}],
+  language: "fi"
+}
+```
+
+**Output:**
+```javascript
+{
+  instruction: "Mene kirjastoon ja keskustele Jeen kanssa kirjeestä"
+}
+```
+
+**Prompt-rakenne:**
+```
+YOU ARE DRAMATIC INSTRUCTOR
+Setting: ...
+Character: Jesse (kartanon serkku, velkaantunut...)
+Recent Story: Jee kysyi Jesse:ltä kirjeestä...
+Character's Memory: [key_moments + relationships]
+
+Generate next instruction for Jesse.
+```
+
+**Solo play detection:**
+```javascript
+const otherChars = Object.keys(character.memory.relationships);
+if (otherChars.length === 0) {
+  prompt += "\n⚠️ NO OTHER CHARACTERS IN GAME YET\n";
+  prompt += "Use internal reflection, environment exploration.";
+}
+```
+
+### 4. **Memory Extractor** (`llm/memoryExtractor.js`)
+
+**Rooli:** Tunnistaa dramaturgisesti merkittävät hetket recent storysta
+
+**Input:**
+```javascript
+{
+  gameConfig: {...},
+  recentStory: [{character: "jesse", instruction: "..."}],
+  characters: {jesse: {...}, jee: {...}},
+  participantLanguages: {jesse: "fi", jee: "sv"}
+}
+```
+
+**Output:**
+```javascript
+{
+  "jesse": {
+    "key_moments": [
+      {
+        "content": "Jesse löysi salaisen käytävän kirjaston takaa",
+        "emotionalWeight": 4,
+        "participants": ["jesse"]
+      }
+    ],
+    "relationshipChanges": {
+      "jee": {
+        "value": "romantic",
+        "intensity": 5,
+        "notes": "Tunnusti tunteensa Jeelle"
+      }
+    }
+  },
+  "jee": {
+    "key_moments": [
+      {
+        "content": "Jesse bekände sina känslor för Jee i biblioteket",
+        "emotionalWeight": 5,
+        "participants": ["jesse", "jee"]
+      }
+    ],
+    "relationshipChanges": {
+      "jesse": {
+        "value": "romantic",
+        "intensity": 3,
+        "notes": "Jesse erkände sina känslor"
+      }
+    }
   }
 }
 ```
 
-**Käyttö:**
-- DramaturgBuilder analysoi pelin kulun kun:
-  - Game Master aktivoi manuaalisesti TAI
-  - EngineRunner päättää aktivoinnin
-- Tallentaa analyysinsa world.json:iin
-- PromptBuilder lukee tämän ja ohjaa toimintaprompteja kohti dramaattisia hetkiä
-- Game Master voi muokata → vaikuttaa suoraan prompteihin
-
-**Tietovirta:**
-```
-story.json → DramaturgBuilder analysoi → world.dramaturgy päivittyy → PromptBuilder käyttää
-```
-
-
-## 🤖 Oneshot LLM Agents
-
-Kielimallit toimivat **oneshot agenteina** - erikoistuneina työkaluina jotka suorittavat yhden tehtävän kerrallaan.
-
-### Agent-roolit
-
-| Agent | Tehtävä | Input | Output | Kutsutaan |
-|-------|---------|-------|--------|-----------|
-| **PromptAgent** | Luo toimintaohjeet pelaajalle | Hahmon muisti + recent story + game config | Yksi konkreettinen toimintopromtti | Aina kun pelaaja pyytää |
-| **MemoryExtractor** | Parsii dramaturgisesti merkittävät hetket | Recent story entries + osallistujat | key_moments + relationship changes (kaikille) | Joka 5. prompti TAI player_input |
-| **DramaturgAgent** | Analysoi draaman kulku | Recent story + game config | Phase analysis + next suggestions | GM:n triggerillä tai 15min välein |
-
-**Design pattern: Dependency Injection**
+**Multi-language support:**
 ```javascript
-// server.js keskittää askLLM-funktion
-const askLLM = (prompt, agentType, source, options) => { 
-  // API-kutsu OpenRouter/Ollama/etc 
+const langInstruction = Object.entries(participantLanguages)
+  .map(([charId, lang]) => `${charId} (${languages[lang]})`)
+  .join(", ");
+// "jesse (Finnish), jee (Swedish)"
+// Prompt: Write each character's content in THEIR OWN language
+```
+
+**Trigger logic:**
+```javascript
+// server.js
+let entriesCount = storyRecent.entries.length;
+if (entriesCount % 5 === 0 || anyPlayerSubmitted) {
+  await memoryExtractor({...});
+}
+```
+
+### 5. **Dramaturg Agent** (`llm/dramaturgAgent.js`)
+
+**Rooli:** Analysoi pelin draaman kulun Game Masterille
+
+**Input:**
+```javascript
+{
+  gameConfig: {...},
+  recentStory: [...],
+  characters: {jesse: {...}, jee: {...}}
+}
+```
+
+**Output:**
+```javascript
+{
+  analysis: "Draama on kärjistymässä - Jesse ja Jee ovat romanttisessa jännitteessä...",
+  suggestions: [
+    "Lisää ulkoinen uhka joka pakottaa heidät yhteistyöhön",
+    "Tuo uusi hahmo joka haastaa heidän suhteensa"
+  ],
+  dramaticArc: "rising"
+}
+```
+
+## 🔄 Pelikulun logiikka
+
+### Uusi pelaaja liittyy
+
+```javascript
+socket.on('join_game', async ({playerName, language}) => {
+  // 1. Luo socket-yhteys
+  players[socket.id] = {name: playerName, language, character: null};
+  
+  // 2. Lähetä tutorial agentin tervehdys
+  const tutorialResponse = await tutorialAgent({
+    gameConfig,
+    conversationHistory: [],
+    language
+  });
+  socket.emit('tutorial_response', tutorialResponse);
+});
+```
+
+### Tutorial-keskustelu
+
+```javascript
+socket.on('player_tutorial', async ({message, history}) => {
+  // 1. Lähetä pelaajan viesti agentille
+  const tutorialResponse = await tutorialAgent({
+    gameConfig,
+    conversationHistory: [...history, {role: 'user', content: message}],
+    language: player.language
+  });
+  
+  // 2. Jos agentti päätti luoda hahmon → Character Creator
+  if (tutorialResponse.shouldCreateCharacter) {
+    const characterData = await characterCreator({
+      gameConfig,
+      characterWishes: tutorialResponse.characterWishes,
+      existingCharacters: getAllCharacters(),
+      language: player.language
+    });
+    
+    // 3. Tallenna hahmo + lähetä clientille
+    saveCharacter(characterData);
+    socket.emit('character_created', characterData);
+  } else {
+    socket.emit('tutorial_response', tutorialResponse);
+  }
+});
+```
+
+### Pelaaja pyytää promptin
+
+```javascript
+socket.on('trigger_scene', async ({playerId, playerSubmit}) => {
+  // 1. Hae pelaajan hahmo
+  const character = getCharacter(playerId);
+  
+  // 2. Hae recent story
+  const recentStory = getRecentStory(10);
+  
+  // 3. Generoi prompti
+  const instruction = await promptAgent({
+    gameConfig,
+    character,
+    recentStory,
+    language: character.playerMeta.language
+  });
+  
+  // 4. Tallenna story_recent.json
+  addStoryEntry({
+    character: character.id,
+    instruction,
+    playerSubmitted: playerSubmit
+  });
+  
+  // 5. Tarkista extraction trigger
+  if (shouldExtract()) {
+    await memoryExtractor({
+      gameConfig,
+      recentStory,
+      characters: getAllCharacters(),
+      participantLanguages: getParticipantLanguages()
+    });
+  }
+  
+  // 6. Lähetä prompti clientille
+  socket.emit('scene_update', {instruction});
+});
+```
+
+### Memory extraction trigger
+
+```javascript
+function shouldExtract() {
+  const entriesCount = storyRecent.entries.length;
+  const anyPlayerSubmitted = storyRecent.entries.some(e => e.playerSubmitted);
+  
+  return (entriesCount % 5 === 0) || anyPlayerSubmitted;
+}
+```
+
+## 🌍 Monikielisyys
+
+### Periaate
+
+Jokainen hahmo pelaa omalla kielellään - muistit kirjoitetaan hahmon kielellä.
+
+### Toteutus
+
+```javascript
+// Character file
+{
+  "playerMeta": {
+    "language": "fi"  // player's chosen language
+  }
+}
+
+// Memory Extractor
+const participantLanguages = {
+  jesse: "fi",
+  jee: "sv",
+  frank: "en"
 };
 
-// Agentit saavat askLLM:n parametrina
-const instruction = await promptAgent.generatePrompt(char, context, askLLM);
-const memories = await memoryExtractor.extract(entries, participants, askLLM);
+// Prompt to LLM
+"Participants: jesse (Finnish), jee (Swedish), frank (English)"
+"Write each character's content and reason fields in THEIR OWN language."
 ```
 
-**Hyödyt:**
-- ✅ Testattavuus (mock askLLM)
-- ✅ Keskitetty API-hallinta
-- ✅ Sama malli voi toimia useassa roolissa
-- ✅ Helppokäyttöisyys (ei buildereiden hardkoodausta)
+### Tulos
 
-### Oneshot-filosofia
-
-Agentit eivät pidä tilaa. Jokainen kutsu on itsenäinen:
-- **Input:** Kaikki tarvittava data parametreina
-- **Processing:** LLM prosessoi promptin
-- **Output:** JSON tai teksti, palautetaan
-- **No memory:** Agent ei muista edellistä kutsuaan
-
-Tila säilyy tiedostoissa (characters/*.json, game_config.json), ei agenteissa.
-  └─ CharacterBuilder (hahmojen dynamiikka)
-
-Kevyt malli (nopea tunnistus):
-  ↓
-  ├─ WorldBuilder (elementtien tunnistus)
-  └─ Analyysit (kontekstin päivitys)
-
-Function Calling (jos saatavilla):
-  ↓
-  └─ EngineRunner (älykäs päätöksenteko)
-```
-
-**Arkkitehtuurinen kompleksisuus:**
-- **Laatukriittinen** - Luova ajattelu, monimutkainen konteksti
-- **Kevyt** - Rakenteinen tunnistus, nopea suoritus
-- Ei sidottu tiettyyn palveluun tai malliin
-
-## 🖥️ Clientit - Näkymät tarinaan
-
-Kaikki käyttöliittymät ovat vain **eri näkymiä** samaan `story.json`-tiedostoon:
-
-### 1. **playerclient.html** - Pelaajan näkymä
-**Näkee:**
-- Omat hahmotiedot (world.characters[id])
-- Viimeisin toimintapromtti (story.json filtered)
-- Oma raportointi-historia
-
-**EI näe:**
-- Muiden pelaajien prompteja
-- Dramaturgi-analyysia
-- World elementtejä (ellei hahmo ole löytänyt niitä)
-
-**HUOM: Promptin konteksti ≠ Pelaajan näkymä**
-- Kielimallille annetaan laajempi konteksti (mitä muut hahmot tekevät)
-- Pelaaja näkee vain oman prompttinsa
-- Jos pelaajia 100, konteksti rajataan "lähipiiriin" (skaalautuvuus)
-- Perustilanteessa: koko tilanne historia on hyödyllistä
-
-### 2. **gamemaster.html** - GameMasterClient
-**Näkee:**
-- Kaikki hahmot + heidän tietonsa (world.characters)
-- Kaikki world elementit (places, NPCs, items)
-- Dramaturgi-analyysin (world.dramaturgy)
-- Yhteenvedon tarinasta (story.json)
-
-**Voi:**
-- Aktivoida DramaturgBuilder (analysoi pelin kulku)
-- Säätää dramaturgisia parametreja
-- Antaa manuaalisia ohjeita pelaajille
-- Aktivoida WorldBuilder tarvittaessa
-
-### 3. **debug.html** - Kehittäjän näkymä
-**Näkee:**
-- Täydet promptit (debug_prompts.json)
-- LLM:n vastaukset raakadatana
-- Logivirheet ja ongelmat
-- Timestamp-tiedot analysointiin
-
-**Käyttö:**
-- Kehitä prompteja
-- Debuggaa kielimallin käyttäytymistä
-- Optimoi mallin valintoja
-
-**Tietovirta:**
-```
-story.json (Single Source of Truth)
-    ↓
-    ├─ playerClient.js filtroi → Pelaaja näkee vain omansa
-    ├─ gamemasterClient.js aggregoi → GM näkee kaiken
-    └─ debugClient.js purkaa → Kehittäjä näkee raakadatan
-```
-
-
-## 🎮 Peli-moduulit (Game Library)
-
-Pelit määritellään **Markdown-tiedostoissa** (data/game_library/*.md):
-
-```markdown
-# Murhapeli 1920-luvun kartanossa
-
-## Setting
-Vieraat ovat loukussa myrskyn vuoksi kartanossa. Yksi vieraista löytyy murhattuna...
-
-## Available Relationships
-trust, suspect, alliance, rivalry, fear
-
-## Physical Props Guidance
-Items are symbolic. A post-it note labeled "weapon" = murder weapon.  
-What matters: who is seen handling it and when.
-
-## Themes
-betrayal, secrets, class conflict, greed
-
-## Character Template
-Luo kartanon vieras jolla on:
-- Salainen motiivi murhaan
-- Yhteys uhriin
-- Taakka menneisyydestä
-```
-
-**Miksi Markdown?**
-- ✅ Ei JSON-syntaksia - vapaa kirjoitus
-- ✅ LLM parsii suoraan
-- ✅ Git-ystävällinen
-- ✅ Ei mechanics - puhtaasti kerronnallinen
-
-**Peli = semanttiset raamit:**
-- availableRelationships määrittää sallitut suhteet
-- Themes ohjaa dramaturgiaa
-- Character Template ohjaa hahmonluontia
-- Physical Props määrittää miten reaalimaailma integroidaan
-
-Sama moottori, eri peli-moduuli = erilainen kokemus.
-
-
-## 📈 Skaalautuvuus ja flow
-
-### Extraction flow (ei blokkaava)
-
-```
-Pelaaja pyytää promptin
-    ↓
-PromptAgent generoi (1 AI-kutsu) → Vastaus heti pelaajalle
-    ↓
-Tallennetaan story_recent.json
-    ↓
-[TAUSTALLA - ei blokkaava]
-    ↓
-Tarkista: storyCount % 5 === 0 TAI playerSubmitted?
-    ↓ (kyllä)
-MemoryExtractor Agent aktivoituu
-    ↓
-Parsii viimeiset 5-10 merkintää (1 AI-kutsu kaikille osallistujille)
-    ↓
-Tallentaa key_moments ja relationships → characters/*.json
-    ↓
-Valmis (pelaaja ei huomannut, ei odotusaikaa)
-```
-
-**Skaalaus 100+ pelaajaan:**
-- Nykyinen: Koko story konteksti kaikille (toimii 2-10 pelaajalle)
-- Tulevaisuus: Relationship-based filtering (näytä vain lähipiirin lokit)
-- MemoryExtractor: Spatial/temporal filtering (sama paikka/viimeinen 30min)
-- Promptit: ~500-800 riviä per pelaaja (vs nykyinen 1000-1500)
-
----
-
-## 🔄 Tietovirta - Yhteenveto
-
-```
-1. GM alustaa pelin → Lataa game_library/*.md → game_config.json
-
-2. Pelaaja liittyy → CharacterAgent luo hahmon → characters/{charId}.json
-
-3. Pelaaja pyytää promptin:
-   PromptAgent → Lue character + story_recent + game_config → Generoi promptti
-   
-4. Promptti tallennetaan → story_recent.json (circular buffer)
-
-5. Extraction trigger (joka 5. tai player_input):
-   MemoryExtractor → Parsii story_recent → Päivitä characters/*.json (key_moments + relationships)
-
-6. DramaturgAgent (15min tai GM trigger):
-   Analysoi story_recent → Päivitä game_config.currentPhase
-```
-
-**Data flow:**
-- game_library/*.md → game_config.json (pelin raamit)
-- Pelaajan input → story_recent.json (circular buffer)
-- MemoryExtractor → characters/*.json (kognitiivinen muisti)
-- PromptAgent lukee: character + story_recent + game_config → generoi promptti
-
-**Ei enää:**
-- ❌ world.json (korvattiin: characters/*.json + game_config.json)
-- ❌ story.json kasvu loputtomiin (korvattiin: story_recent.json circular buffer)
-- ❌ EngineRunner päätöksenteko (korvattiin: yksinkertainen trigger-logiikka)
-- ❌ WorldBuilder/CharacterBuilder erillisinä (yhdistettiin: MemoryExtractor)
-
----
-
-**Yhteenveto: Digital LARP Engine - Kognitiivinen muisti-arkkitehtuuri**
-
-Hahmot muistavat dramaturgisesti merkittävät hetket. Suhteet ovat arvoja (trust, romantic, suspect). Peli-moduulit määrittävät semanttiset raamit. Oneshot agentit hoitavat LLM-tehtävät. Skaalautuva 100+ pelaajaan. Autonominen operaatio ilman GM:ää.
-
-**4. Semantic search (myöhemmin)**
 ```javascript
-// Vektorihaulla relevanteimmat lokit:
-const relevantLogs = await searchRelevantLogs(character, world, logs);
+{
+  "jesse": {
+    "key_moments": [
+      {"content": "Jesse löysi salaisen käytävän", ...}  // Finnish
+    ]
+  },
+  "jee": {
+    "key_moments": [
+      {"content": "Jesse hittade en hemlig passage", ...}  // Swedish
+    ]
+  }
+}
 ```
 
-### Miksi skaalautuu hyvin?
-
-| Aspekti | Ratkaisu | Skaalautuvuus |
-|---------|----------|---------------|
-| **Promptit** | Filtteröidään per pelaaja | O(log n) |
-| **LLM-kutsut** | Asynkronisia, ei odoteta | Rinnakkaisia |
-| **World.json** | Kasvaahitaasti, elementit harvaan | O(n) elementit, ei pelaajat |
-| **Logs.json** | Vain viimeiset n tapahtumaa | Rajattu konteksti |
-| **Socket.io** | Event-based, broadcast vain muutoksille | Tehokas |
-
-**Testattuna toimivaksi:**
-- 10 pelaajaa: Toimii sulavasti ✅
-- 50 pelaajaa: Ennakoitu toiminta (tarvitsee filtteröintiä) ⚠️
-- 100 pelaajaa: Toimii filtteröinnillä (relationship/spatial) 🔮
-
-## 🔄 Tietovirta - Täydellinen esimerkki
+## 📊 Data flow kaavio
 
 ```
-1. PELAAJA: "Ja sitten" (trigger_scene)
-         ↓
-2. SERVER: Lataa konteksti
-   - world.json → Hahmotiedot, world elements, dramaturgy
-   - logs.json → Rajattu määrä tilanne historiaa
-         ↓
-3. PROMPT BUILDER:
-   - buildActionPrompt(character, world, logs, config)
-   - Luo täyden promptin (systemprompt + taksonomia + konteksti)
-         ↓
-4. LLM (Laatukriittinen malli):
-   - Generoi toimintapromtti
-   - "Mene laboratorioon. Huomaat että..."
-         ↓
-5. LOG UPDATE (AINA):
-   - logs.entries.push({timestamp, characterId, action, instruction})
-   - Tallentaa logs.json
-         ↓
-6. PELAAJA: Näkee promptin
-         ↓
-     ┌──────────────────────────────────────┐
-     │   SIMULTAANI HAARA: ENGINE RUNNER    │
-     └──────────────────────────────────────┘
-         ↓
-7. ENGINE RUNNER (FunctionGemma):
-   - Analysoi: "Mitä buildereitä aktivoidaan?"
-   - Päätökset:
-     ├─ analyze_world → WorldBuilder
-     ├─ analyze_dramaturgy → DramaturgBuilder
-     ├─ update_character → CharacterBuilder
-     └─ no_action → Ei mitään
-         ↓
-8a. WORLD BUILDER (jos aktivoitu, kevyt malli):
-    - analyzeWorldElements(instruction, askLLM, world)
-    - Löytää: newPlaces = ["Laboratorio"]
-    - Tarkistaa: "ALREADY KNOWN" lista
-    - updateWorldElements(analysis, characterId, world)
-    - Tallentaa world.json
-         ↓
-8b. DRAMATURG BUILDER (jos aktivoitu, laatukriittinen):
-    - buildDramaturgyPrompt(world, logs, askLLM)
-    - Analysoi: jännite, pacing, plot twists
-    - Tallentaa world.dramaturgy
-         ↓
-8c. CHARACTER BUILDER (jos aktivoitu, kevyt malli):
-    - analyzeCharacterUpdates(instruction, askLLM, world)
-    - Päivittää: relationships, secrets
-    - Tallentaa world.characters
-         ↓
-9. BROADCAST (jos muutoksia):
-   - socket.emit('instruction_generated') → Pelaajalle
-   - socket.emit('world_updated') → GameMasterClient
-   - socket.emit('log_updated') → Debug-näkymälle
+┌──────────────┐
+│  Pelaaja     │
+└──────┬───────┘
+       │ join_game
+       ↓
+┌──────────────────┐
+│ Tutorial Agent   │ (conversational)
+└──────┬───────────┘
+       │ <TOOL_CALL>createCharacter
+       ↓
+┌──────────────────┐
+│Character Creator │ → characters/{id}.json
+└──────────────────┘
+       │
+       ↓
+┌──────────────────┐
+│  Peliin          │
+└──────┬───────────┘
+       │ trigger_scene
+       ↓
+┌──────────────────┐
+│  Prompt Agent    │ (reads character memory + recent story)
+└──────┬───────────┘
+       │
+       ↓ instruction
+┌──────────────────┐
+│story_recent.json │ (circular buffer, max 20)
+└──────┬───────────┘
+       │ extraction trigger (every 5th OR player_submit)
+       ↓
+┌──────────────────┐
+│Memory Extractor  │ (extracts key_moments + relationships)
+└──────┬───────────┘
+       │
+       ↓
+┌──────────────────┐
+│characters/{id}.  │ (key_moments + relationships updated)
+│     json         │
+└──────────────────┘
 ```
 
-**Keskeinen logiikka:**
-- Prompt Builder → Log → Pelaaja (AINA)
-- Engine Runner toimii simultaanisti (päättää builderit)
-- Log update AINA kielimallikyselyn jälkeen
-- Builderit päivittävät world.json tarvittaessa
+## 🎯 Design Principles
 
-## 🎯 Arkkitehtuurin vahvuudet
+### 1. Kognitiivinen muisti
 
-### 1. Yksinkertainen ydin
-- Yksi totuuden lähde (logs.json)
-- Selkeät vastuualueet (world, logs, dramaturgy)
-- Ei monimutkaista tilanhallintaa
-
-### 2. Modulaarisuus
-- LLM-moduulit vaihdettavissa (PromptBuilder, WorldBuilder, DramaturgBuilder, CharacterBuilder)
-- Sama malli voi toimia useassa roolissa
-- Helppo lisätä uusia moduuleja (builderit noudattavat samaa mallia)
-
-### 3. Testattavuus
-- Dependency injection (mock askLLM)
-- Selkeät inputit ja outputit
-- Debug-näkymä auttaa kehityksessä
-
-### 4. Skaalautuvuus
-- Filtteröinti per pelaaja
-- Asynkroniset LLM-kutsut
-- Event-based arkkitehtuuri
-
-### 5. LARP-sopivuus
-- Ei pisteitä tai mekaanista pelaamista
-- Vapaat markdown-kuvaukset
-- Kerronnallinen voitto/häviö
-- Sopii workshoppeihin ja reflektointiin
-
-## 📁 Hakemistorakenne
-
-```
-.
-├── server.js                      # Pelimoottori (Socket.io + Express)
-├── package.json
-├── .env                           # API-avaimet ja konfiguraatio
-│
-├── data/                          # Single Source of Truth
-│   ├── logs.json                  # Historia - mitä on tapahtunut
-│   ├── world.json                 # Nykyhetki - mitä on olemassa
-│   ├── systemprompt.md            # LLM:n perusohjeistus
-│   ├── debug_prompts.json         # Kehitysdata (täydet promptit)
-│   └── game_library/              # Pelitemplaatit (Markdown)
-│       ├── murhapeli.md
-│       ├── hemulin_alushousut.md
-│       └── scifi_avaruusasema.md
-│
-├── llm/                           # Modulaariset LLM-työkalut
-│   ├── promptBuilder.js           # Luo toimintapromptit
-│   ├── worldBuilder.js            # Tunnista uudet elementit
-│   ├── dramaturgBuilder.js        # Analysoi draama
-│   ├── characterBuilder.js        # Päivitä hahmoja (tulossa)
-│   ├── engineRunner.js            # Päätä aktivoinnit (FunctionGemma)
-│   └── README.md                  # LLM-moduulien dokumentaatio
-│
-└── public/                        # Käyttöliittymät (näkymät)
-    ├── index.html                 # Pelaajan näkymä
-    ├── gamemaster.html            # Pelinjohtajan näkymä
-    └── debug.html                 # Kehittäjän näkymä
+**Ei** tallenneta kaikkea:
+```javascript
+// ❌ Väärin
+story_full.json: [
+  "Jesse sanoi hei",
+  "Jee vastasi hei",
+  "Jesse kysyi mitä kuuluu",
+  "Jee vastasi hyvin"
+]
 ```
 
-## 🚀 Tulevaisuuden kehityskohteet
+**Kyllä** tallennetaan merkittävät hetket:
+```javascript
+// ✅ Oikein
+characters/jesse.json: {
+  key_moments: [
+    {content: "Jesse tunnusti tunteensa Jeelle", emotionalWeight: 5}
+  ]
+}
+```
 
-### Prioriteetti 1 (Ydin toimii)
-- ✅ Log-keskinen arkkitehtuuri
-- ✅ Modulaariset LLM-roolit
-- ✅ World Builder + context awareness
-- ✅ FunctionGemma decision making
-- ✅ Kielimalli yhtymäkohta (käyttäjä määrittää)
-- [ ] Character Builder (relationships, secrets, initiative)
+### 2. Semanttiset raamit, ei kovakoodattuja sääntöjä
 
-### Prioriteetti 2 (Optimointi)
-- [ ] Relationship-based log filtering
-- [ ] Spatial filtering (saman paikan hahmot)
-- [ ] Temporal filtering (vain viimeinen 30 min)
-- [ ] Prompt caching (OpenRouter)
+**Ei** game logiikkaa:
+```javascript
+// ❌ Väärin
+if (player.hasKey && player.location === "door") {
+  door.unlock();
+}
+```
 
-### Prioriteetti 3 (Laajennukset)
-- [ ] Loppu purku -pelitila (reflektointi)
-- [ ] Multi-kielituki (UI + LLM)
-- [ ] AR/QR-koodit fyysisiin paikkoihin
-- [ ] Analytiikka-dashboard GM:lle
-- [ ] Semantic search logeille (vektorihaulla)
+**Kyllä** LLM-tulkinta:
+```javascript
+// ✅ Oikein
+const instruction = await promptAgent({
+  character: {memory: {key_moments: ["Found mysterious key"]}},
+  recentStory: ["Approached the locked door"]
+});
+// → "Try using the key you found on the locked door"
+```
 
-## 📖 Yhteenveto
+### 3. Oneshot agentit, ei monologeja
 
-**Elopelimoottorin arkkitehtuuri on:**
+Jokainen agentti on funktio - ei luokkia, ei tilaa, ei monimutkaista koordinointia.
 
-1. **Log-keskinen** - logs.json on totuuden lähde
-2. **Modulaarinen** - LLM-roolit vaihdettavissa
-3. **Skaalautuva** - 100 pelaajaa kontekstin rajauksella
-4. **Yksinkertainen** - Selkeät vastuualueet
-5. **LARP-sopiva** - Ei mekaanista pelaamista
+```javascript
+// ✅ Yksinkertainen
+const instruction = await promptAgent({gameConfig, character, recentStory});
 
-**Ydin on nyt valmis.** Seuraavat vaiheet ovat promptien hienosäätöä ja kielimallien optimointia - arkkitehtuuri pysyy samana.
+// ❌ Monimutkainen
+const agent = new PromptAgent(gameConfig);
+await agent.initialize();
+const instruction = await agent.generate(character);
+await agent.cleanup();
+```
 
----
+## 🚀 Tulevat kehityskohteet
 
-*Versio: 2.0 (Log-keskinen, Modulaarinen)*  
-*Päivitetty: 9.1.2025*
+- [ ] Draaman kaaren seuranta (rising/falling action)
+- [ ] Relationship-based log filtering (näytä vain relevantit hetket)
+- [ ] NPC-hahmot (GM-ohjatut)
+- [ ] Voice interface (puhe → teksti → LLM → teksti → puhe)
+- [ ] Spatial positioning (GPS/Beacon-based location tracking)
+
+## 📝 Liitteet
+
+- [llm/promptAgent.js](llm/promptAgent.js) - Sisältää inline dramaturgi-promptin
+- [docs/taxonomy.md](docs/taxonomy.md) - Dramaturgiset työvälineet (analyyttinen muistikirja)
+- [data/game_library/murhapeli.md](data/game_library/murhapeli.md) - Esimerkki pelitemplaatista

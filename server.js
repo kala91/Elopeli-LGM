@@ -34,7 +34,6 @@ const STORY_RECENT_FILE = path.join(__dirname, 'data', 'story_recent.json');
 const CHARACTERS_DIR = path.join(__dirname, 'data', 'characters');
 const PROMPT_DEBUG_FILE = path.join(__dirname, 'data', 'debug_prompts.json');
 const GAME_LIBRARY_DIR = path.join(__dirname, 'data', 'game_library');
-const SYSTEM_PROMPT_FILE = path.join(__dirname, 'data', 'systemprompt.md');
 
 // ENV: Extraction interval (default: every 5th prompt)
 const EXTRACTION_INTERVAL = parseInt(process.env.EXTRACTION_INTERVAL) || 5;
@@ -134,16 +133,6 @@ function getAllCharacterIds() {
     return fs.readdirSync(CHARACTERS_DIR)
         .filter(f => f.endsWith('.json'))
         .map(f => f.replace('.json', ''));
-}
-
-/**
- * Load system prompt from markdown file
- */
-function loadSystemPrompt() {
-    if (!fs.existsSync(SYSTEM_PROMPT_FILE)) {
-        return '';
-    }
-    return fs.readFileSync(SYSTEM_PROMPT_FILE, 'utf8');
 }
 
 // ============================================================================
@@ -504,7 +493,6 @@ io.on('connection', (socket) => {
 
             const gameConfig = loadGameConfig();
             const recentStory = loadRecentStory();
-            const systemPrompt = loadSystemPrompt();
             
             // Load all characters for context (so agent knows other players)
             const allCharacterIds = getAllCharacterIds();
@@ -516,7 +504,6 @@ io.on('connection', (socket) => {
                 allCharacters,
                 gameConfig,
                 recentStory.entries,
-                systemPrompt,
                 askLLM
             );
 
