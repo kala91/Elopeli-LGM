@@ -190,7 +190,7 @@
                 availableTemplates.forEach(template => {
                     const option = document.createElement('option');
                     option.value = template.id;
-                    option.textContent = template.name;
+                    option.textContent = template.name || template.id || 'Unnamed Template';
                     selector.appendChild(option);
                 });
             } catch (error) {
