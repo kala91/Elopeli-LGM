@@ -63,13 +63,6 @@
     <div id="master-screen">
         <div class="container">
             <h1>🎮 GAME MASTER CONSOLE</h1>
-            
-            <div class="access-panel">
-                <h2 style="margin-top: 0; border: none;">PELAAJIEN OSOITE</h2>
-                <div class="access-url" id="player-url">Ladataan...</div>
-                <div class="qr-code" id="qr-container"></div>
-                <p style="color: #888; font-size: 0.9rem;">Pelaajat voivat liittyä peliin avaamalla tämän osoitteen tai skannaamalla QR-koodin.</p>
-            </div>
 
             <div class="card" style="margin-bottom: 20px; background: #1a0a0a; border: 2px solid #ff6b6b;">
                 <h2 style="margin-top: 0; border: none;">⏱️ PELIN AJASTUS JA VAIHEET</h2>
@@ -135,29 +128,14 @@
                     <h2>🤖 LLM STATUS</h2>
                     <div class="card" style="background: #0a0a1a;">
                         <div style="margin-bottom: 10px;">
-                            <strong>Provider:</strong> <span id="llm-provider" style="color: #0ff;">-</span>
+                            <strong>Provider:</strong> <span id="llm-provider" style="color: #0ff;">OpenRouter / Ollama</span>
                         </div>
                         <div style="margin-bottom: 10px;">
-                            <strong>Model:</strong> <span id="llm-model" style="color: #0ff;">-</span>
-                        </div>
-                        <div style="margin-bottom: 10px;">
-                            <strong>World Analyzer:</strong> <span id="analyzer-model" style="color: #0ff;">-</span>
+                            <strong>Model:</strong> <span id="llm-model" style="color: #0ff;">Katso palvelimen konsoli</span>
                         </div>
                         <div id="llm-activity" style="margin-top: 15px; padding: 10px; background: #1a1a1a; border-left: 3px solid #666; display: none;">
                             <div style="color: #ff0;">⏳ <span id="activity-text">Processing...</span></div>
                         </div>
-                    </div>
-
-                    <h2>🌍 WORLD ELEMENTS</h2>
-                    <div class="card" style="background: #0a1a0a;">
-                        <h3 style="font-size: 0.9rem; margin-top: 0; color: #6f6;">Places (<span id="places-count">0</span>)</h3>
-                        <div id="places-list" style="font-size: 0.85rem; color: #afa; margin-bottom: 15px;">Ei paikkoja vielä</div>
-                        
-                        <h3 style="font-size: 0.9rem; color: #6cf;">NPCs (<span id="npcs-count">0</span>)</h3>
-                        <div id="npcs-list" style="font-size: 0.85rem; color: #acf; margin-bottom: 15px;">Ei NPC:itä vielä</div>
-                        
-                        <h3 style="font-size: 0.9rem; color: #fc6;">Items (<span id="items-count">0</span>)</h3>
-                        <div id="items-list" style="font-size: 0.85rem; color: #fda;">Ei esineitä vielä</div>
                     </div>
 
                     <h2>👥 CHARACTERS</h2>
@@ -541,24 +519,15 @@
             }
         }
 
-        // Vastaanota serverin IP-tiedot
-        socket.on('server_info', (info) => {
-            const playerUrl = `http://${info.ip}:${info.port}/`;
-            document.getElementById('player-url').innerText = playerUrl;
-
-            // Generoi QR-koodi
-            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(playerUrl)}`;
-            document.getElementById('qr-container').innerHTML = `<img src="${qrApiUrl}" alt="QR Code" style="border: 2px solid #0f0;">`;
+        // Vastaanota pelin tilan synkronointi
+        socket.on('sync_state', (data) => {
+            console.log('🎮 Sync state received:', data);
+            gameConfig = data.gameConfig || {};
             
-            // Näytä LLM status (jos saatavilla)
-            if (info.llmProvider) {
-                document.getElementById('llm-provider').textContent = info.llmProvider.toUpperCase();
-                document.getElementById('llm-model').textContent = info.llmModel || 'Unknown';
-                document.getElementById('analyzer-model').textContent = info.analyzerModel || 'Unknown';
+            if (data.characters) {
+                updateCharacters(data.characters);
             }
         });
-
-        // world_update removed - using character_updated events instead
         
         // Kuuntele character_joined eventejä (uusi kognitiivinen muisti-arkkitehtuuri)
         socket.on('character_joined', (character) => {
@@ -625,7 +594,8 @@
         // Synkkaa historia
         socket.on('sync_state', (data) => {
             const masterLog = document.getElementById('master-log');
-            data.story.forEach(entry => {
+            const storyEntries = data.story?.entries || [];
+            storyEntries.forEach(entry => {
                 const entryDiv = document.createElement('div');
                 entryDiv.className = entry.playerSubmitted ? 'card log-entry player-action' : 'card log-entry';
                 
