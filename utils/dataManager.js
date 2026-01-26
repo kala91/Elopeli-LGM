@@ -27,7 +27,7 @@ function readJSONFile(filePath, defaultValue = null) {
         const data = fs.readFileSync(filePath, 'utf8');
         return JSON.parse(data);
     } catch (error) {
-        console.error(\`❌ Error reading JSON file \${filePath}:\`, error.message);
+        console.error(`❌ Error reading JSON file ${filePath}:`, error.message);
         return defaultValue;
     }
 }
@@ -49,7 +49,7 @@ function writeJSONFile(filePath, data) {
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
         return true;
     } catch (error) {
-        console.error(\`❌ Error writing JSON file \${filePath}:\`, error.message);
+        console.error(`❌ Error writing JSON file ${filePath}:`, error.message);
         return false;
     }
 }
@@ -64,7 +64,7 @@ function writeJSONFile(filePath, data) {
  * @returns {Object|null} Character data or null if not found
  */
 function loadCharacter(charId) {
-    const charFile = path.join(PATHS.CHARACTERS_DIR, \`\${charId}.json\`);
+    const charFile = path.join(PATHS.CHARACTERS_DIR, `${charId}.json`);
     return readJSONFile(charFile, null);
 }
 
@@ -75,7 +75,7 @@ function loadCharacter(charId) {
  * @returns {boolean} Success status
  */
 function saveCharacter(charId, data) {
-    const charFile = path.join(PATHS.CHARACTERS_DIR, \`\${charId}.json\`);
+    const charFile = path.join(PATHS.CHARACTERS_DIR, `${charId}.json`);
     return writeJSONFile(charFile, data);
 }
 

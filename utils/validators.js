@@ -46,7 +46,7 @@ function validateLanguage(lang) {
     }
     
     if (!LANGUAGES[lang]) {
-        return { valid: false, error: \`Unsupported language: \${lang}\` };
+        return { valid: false, error: `Unsupported language: ${lang}` };
     }
     
     return { valid: true, error: null };
