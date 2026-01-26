@@ -175,8 +175,9 @@ function appendToRecentStory(entry) {
     story.entries.push(entry);
     
     // Circular buffer: remove oldest if exceeded maxSize
-    while (story.entries.length > story.maxSize) {
-        story.entries.shift();
+    if (story.entries.length > story.maxSize) {
+        const excess = story.entries.length - story.maxSize;
+        story.entries.splice(0, excess);
     }
     
     writeJSONFile(PATHS.STORY_RECENT, story);
