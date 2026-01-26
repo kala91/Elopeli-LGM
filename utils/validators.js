@@ -5,7 +5,7 @@
  * and prevent security issues.
  */
 
-const { LANGUAGES, ERROR_MESSAGES } = require('../config/constants');
+const { LANGUAGES, VALIDATION_LIMITS, ERROR_MESSAGES } = require('../config/constants');
 
 /**
  * Validate player name
@@ -23,8 +23,8 @@ function validatePlayerName(name) {
         return { valid: false, error: ERROR_MESSAGES.PLAYER_NAME_REQUIRED };
     }
     
-    if (trimmed.length > 50) {
-        return { valid: false, error: 'Player name too long (max 50 characters)' };
+    if (trimmed.length > VALIDATION_LIMITS.PLAYER_NAME_MAX_LENGTH) {
+        return { valid: false, error: `Player name too long (max ${VALIDATION_LIMITS.PLAYER_NAME_MAX_LENGTH} characters)` };
     }
     
     // Allow letters, numbers, spaces, and common special characters
@@ -67,8 +67,8 @@ function validateCharacterId(charId) {
         return { valid: false, error: 'Invalid character ID format' };
     }
     
-    if (charId.length > 50) {
-        return { valid: false, error: 'Character ID too long (max 50 characters)' };
+    if (charId.length > VALIDATION_LIMITS.CHARACTER_ID_MAX_LENGTH) {
+        return { valid: false, error: `Character ID too long (max ${VALIDATION_LIMITS.CHARACTER_ID_MAX_LENGTH} characters)` };
     }
     
     return { valid: true, error: null };
@@ -77,10 +77,10 @@ function validateCharacterId(charId) {
 /**
  * Sanitize user input text
  * @param {string} text - Input text
- * @param {number} maxLength - Maximum allowed length
+ * @param {number} maxLength - Maximum allowed length (defaults to MEDIUM length)
  * @returns {string} Sanitized text
  */
-function sanitizeText(text, maxLength = 5000) {
+function sanitizeText(text, maxLength = VALIDATION_LIMITS.TEXT_MEDIUM_MAX_LENGTH) {
     if (!text || typeof text !== 'string') {
         return '';
     }
@@ -108,12 +108,12 @@ function validateGameSetting(setting) {
     
     const trimmed = setting.trim();
     
-    if (trimmed.length < 10) {
-        return { valid: false, error: 'Game setting too short (minimum 10 characters)' };
+    if (trimmed.length < VALIDATION_LIMITS.GAME_SETTING_MIN_LENGTH) {
+        return { valid: false, error: `Game setting too short (minimum ${VALIDATION_LIMITS.GAME_SETTING_MIN_LENGTH} characters)` };
     }
     
-    if (trimmed.length > 10000) {
-        return { valid: false, error: 'Game setting too long (maximum 10000 characters)' };
+    if (trimmed.length > VALIDATION_LIMITS.TEXT_LONG_MAX_LENGTH) {
+        return { valid: false, error: `Game setting too long (maximum ${VALIDATION_LIMITS.TEXT_LONG_MAX_LENGTH} characters)` };
     }
     
     return { valid: true, error: null };
@@ -133,7 +133,7 @@ function validateConversationHistory(history) {
         .filter(msg => msg && typeof msg === 'object' && msg.role && msg.content)
         .map(msg => ({
             role: msg.role === 'player' || msg.role === 'user' ? 'player' : 'assistant',
-            content: sanitizeText(msg.content, 2000)
+            content: sanitizeText(msg.content, VALIDATION_LIMITS.TEXT_SHORT_MAX_LENGTH)
         }))
         .slice(-20); // Keep only last 20 messages
 }

@@ -44,6 +44,19 @@ const GAME = {
 };
 
 // ============================================================================
+// VALIDATION LIMITS
+// ============================================================================
+
+const VALIDATION_LIMITS = {
+    PLAYER_NAME_MAX_LENGTH: 50,
+    CHARACTER_ID_MAX_LENGTH: 50,
+    TEXT_SHORT_MAX_LENGTH: 2000,      // For conversation messages
+    TEXT_MEDIUM_MAX_LENGTH: 5000,     // For general text input
+    TEXT_LONG_MAX_LENGTH: 10000,      // For game settings
+    GAME_SETTING_MIN_LENGTH: 10
+};
+
+// ============================================================================
 // SUPPORTED LANGUAGES
 // ============================================================================
 
@@ -106,6 +119,7 @@ const ERROR_MESSAGES = {
 module.exports = {
     PATHS,
     GAME,
+    VALIDATION_LIMITS,
     LANGUAGES,
     SERVER,
     ERROR_MESSAGES
