@@ -204,12 +204,13 @@ async function buildActionPrompt(character, allCharacters, gameConfig, recentSto
     }
     
     // Build OTHER CHARACTERS context (so AI doesn't invent new characters)
+    // NOTE: Don't truncate - agent needs full character context for decisions
     let otherCharsContext = '';
     const otherCharacters = allCharacters ? allCharacters.filter(c => c.id !== character.id) : [];
     
     if (otherCharacters.length > 0) {
         const otherChars = otherCharacters
-            .map(c => `- ${c.name}: ${c.description.substring(0, 100)}...`)
+            .map(c => `- ${c.name}: ${c.description}`)
             .join('\n');
         
         otherCharsContext = `\n\n**Other Characters in the Game:**\n${otherChars}\n\n(IMPORTANT: Only reference these existing characters. Do NOT invent new characters!)`;
@@ -217,10 +218,11 @@ async function buildActionPrompt(character, allCharacters, gameConfig, recentSto
         otherCharsContext = `\n\n**⚠️ NO OTHER CHARACTERS IN GAME YET**\n\n(CRITICAL: You are the ONLY character! Use internal reflection, environment exploration, or discovering world elements. DO NOT reference or interact with non-existent characters!)`;
     }
     
-    // Build recent story context (last 5-10 entries)
+    // Build recent story context (last 10 entries)
+    // NOTE: Don't truncate instructions - agent needs full context for decision-making
     const recentHistory = recentStoryEntries
         .slice(-10)
-        .map(e => `[${e.timestamp}] ${e.targetChar}: ${e.instruction.substring(0, 150)}...`)
+        .map(e => `[${e.timestamp}] ${e.targetChar}: ${e.instruction}`)
         .join('\n');
     
     // Dramaturgy context
