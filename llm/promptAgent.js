@@ -238,6 +238,16 @@ async function buildActionPrompt(character, allCharacters, gameConfig, recentSto
         timeContext = `\nTime remaining: ${remainingMinutes} minutes`;
     }
     
+    // GM Notes context
+    let gmNotesContext = '';
+    if (gameConfig.gmNotes && gameConfig.gmNotes.length > 0) {
+        const notes = gameConfig.gmNotes
+            .slice(-3) // Last 3 notes
+            .map(note => `- ${note.content}`)
+            .join('\n');
+        gmNotesContext = `\n\n**Pelinjohtajan Huomiot:**\n${notes}`;
+    }
+    
     // Language preference
     const languageMap = { 'fi': 'suomeksi', 'en': 'in English', 'sv': 'på svenska' };
     const languageInstruction = languageMap[character.playerMeta?.language] || 'suomeksi';
@@ -254,6 +264,7 @@ Themes: ${gameConfig.themes.join(', ')}
 
 Physical Props Guidance: ${gameConfig.physicalPropsGuidance}
 ${otherCharsContext}
+${gmNotesContext}
 
 ---
 CHARACTER CONTEXT

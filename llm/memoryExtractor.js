@@ -9,6 +9,8 @@
  * Returns memories and relationship changes for ALL participants in one LLM call.
  */
 
+const { LANGUAGES, GAME } = require('../config/constants');
+
 /**
  * Extract memories from recent story entries
  * @param {Array} recentEntries - Recent story entries to analyze (5-10 entries)
@@ -31,18 +33,10 @@ async function extractMemories(recentEntries, participantCharIds, availableRelat
 
     const relationshipTypes = availableRelationships.join(', ');
 
-    const languageMap = {
-        'fi': 'Finnish (suomeksi)',
-        'en': 'English',
-        'sv': 'Swedish (på svenska)',
-        'de': 'German (auf Deutsch)',
-        'fr': 'French (en français)'
-    };
-
     // Build participant list with their individual languages
     const participantsWithLanguages = participantCharIds.map(charId => {
-        const lang = participantLanguages[charId] || 'fi';
-        const langName = languageMap[lang] || 'Finnish';
+        const lang = participantLanguages[charId] || GAME.DEFAULT_LANGUAGE;
+        const langName = LANGUAGES[lang] || LANGUAGES[GAME.DEFAULT_LANGUAGE];
         return `${charId} (${langName})`;
     }).join(', ');
 

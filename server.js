@@ -786,6 +786,53 @@ io.on('connection', (socket) => {
         }
     });
 
+    // === GM NOTES ===
+    socket.on('gm_notes', (data) => {
+        try {
+            const { notes, timestamp } = data;
+            
+            // Validate input
+            if (!notes || typeof notes !== 'string') {
+                return socket.emit('error', { message: 'Invalid GM notes' });
+            }
+            
+            // Sanitize and limit length
+            const sanitizedNotes = notes.trim().substring(0, 1000); // Max 1000 chars
+            
+            if (sanitizedNotes.length === 0) {
+                return socket.emit('error', { message: 'GM notes cannot be empty' });
+            }
+            
+            console.log('📝 GM Notes received:', sanitizedNotes.substring(0, 50) + '...');
+
+            const gameConfig = loadGameConfig();
+            
+            // Initialize gmNotes array if it doesn't exist
+            if (!gameConfig.gmNotes) {
+                gameConfig.gmNotes = [];
+            }
+            
+            // Add new note
+            gameConfig.gmNotes.push({
+                content: sanitizedNotes,
+                timestamp: timestamp || new Date().toISOString()
+            });
+            
+            // Keep only last 10 notes
+            if (gameConfig.gmNotes.length > 10) {
+                gameConfig.gmNotes = gameConfig.gmNotes.slice(-10);
+            }
+            
+            saveGameConfig(gameConfig);
+            
+            console.log('✅ GM Notes saved to dramaturgia context');
+            
+        } catch (error) {
+            console.error('❌ GM Notes error:', error);
+            socket.emit('error', { message: 'Failed to save GM notes' });
+        }
+    });
+
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
     });

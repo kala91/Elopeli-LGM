@@ -5,27 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Game Master Console</title>
     <style>
-        body { font-family: 'Courier New', Courier, monospace; background: #111; color: #0f0; padding: 20px; margin: 0; }
+        body { font-family: 'Courier New', Courier, monospace; background: #111; color: #0f0; padding: 0; margin: 0; }
         h1 { font-size: 1.5rem; border-bottom: 2px solid #0f0; padding-bottom: 10px; margin-top: 0; }
-        h2 { font-size: 1.2rem; color: #0f0; margin-top: 30px; border-bottom: 1px solid #333; padding-bottom: 5px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .btn { background: #0f0; color: #000; border: none; padding: 15px 30px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        h2 { font-size: 1.2rem; color: #0f0; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        h3 { font-size: 1rem; color: #0f0; margin-top: 15px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .btn { background: #0f0; color: #000; border: none; padding: 12px 24px; font-size: 1rem; font-weight: bold; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #0c0; }
         .btn:active { background: #0a0; }
+        .btn-secondary { background: #555; color: #0f0; }
+        .btn-secondary:hover { background: #666; }
         .card { border: 1px solid #333; padding: 15px; margin-bottom: 15px; background: #000; }
         .timestamp { color: #666; font-size: 0.8rem; }
         textarea { background: #222; border: 1px solid #0f0; color: #fff; padding: 10px; width: 95%; font-family: inherit; min-height: 80px; }
-        label { display: block; margin-top: 15px; margin-bottom: 5px; color: #0f0; font-weight: bold; font-size: 0.9rem; }
+        input[type="text"], input[type="number"] { background: #222; border: 1px solid #0f0; color: #0f0; padding: 8px; font-family: inherit; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; color: #0f0; font-weight: bold; font-size: 0.9rem; }
         .checkbox-label { display: inline-block; margin-left: 10px; font-weight: normal; }
         #config-screen, #master-screen { display: none; }
         .visible { display: block !important; }
-        .access-panel { background: #000; border: 2px solid #0f0; padding: 20px; margin-bottom: 30px; text-align: center; }
-        .access-url { font-size: 1.5rem; color: #0f0; font-weight: bold; background: #222; padding: 10px; margin: 10px 0; }
-        .qr-code { margin: 20px 0; }
         .log-entry { border-left: 3px solid #0f0; padding-left: 10px; margin-bottom: 10px; }
         .log-entry.player-action { border-left-color: #00f; color: #88f; }
-        .prompt-display { background: #1a1a1a; padding: 10px; font-size: 0.85rem; white-space: pre-wrap; max-height: 200px; overflow-y: auto; border: 1px solid #333; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        
+        /* Tab System */
+        .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #0f0; }
+        .tab-btn { background: #222; color: #0f0; border: none; padding: 15px 30px; font-size: 1.1rem; font-weight: bold; cursor: pointer; border-top: 2px solid #333; border-left: 2px solid #333; border-right: 2px solid #333; margin: 0; }
+        .tab-btn:first-child { border-left: none; }
+        .tab-btn.active { background: #0f0; color: #000; border-top-color: #0f0; }
+        .tab-btn:hover:not(.active) { background: #333; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Two-column layout for overview */
+        .overview-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .overview-grid { grid-template-columns: 1fr; } }
+        
+        /* Compact cards */
+        .compact-card { border: 1px solid #333; padding: 12px; margin-bottom: 12px; background: #0a0a0a; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
     </style>
 </head>
 <body>
@@ -64,111 +80,133 @@
         <div class="container">
             <h1>🎮 GAME MASTER CONSOLE</h1>
             
-            <div class="access-panel">
-                <h2 style="margin-top: 0; border: none;">PELAAJIEN OSOITE</h2>
-                <div class="access-url" id="player-url">Ladataan...</div>
-                <div class="qr-code" id="qr-container"></div>
-                <p style="color: #888; font-size: 0.9rem;">Pelaajat voivat liittyä peliin avaamalla tämän osoitteen tai skannaamalla QR-koodin.</p>
+            <!-- Tab Navigation -->
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('overview')">📊 YLEISKATSAUS</button>
+                <button class="tab-btn" onclick="switchTab('control')">🎛️ OHJAUSPANEELI</button>
+                <button class="tab-btn" onclick="switchTab('settings')">⚙️ ASETUKSET</button>
             </div>
-
-            <div class="card" style="margin-bottom: 20px; background: #1a0a0a; border: 2px solid #ff6b6b;">
-                <h2 style="margin-top: 0; border: none;">⏱️ PELIN AJASTUS JA VAIHEET</h2>
+            
+            <!-- OVERVIEW TAB -->
+            <div id="tab-overview" class="tab-content active">
+                <div class="overview-grid">
+                    <!-- Left Column: Characters and Events -->
+                    <div>
+                        <h2>👥 HAHMOT</h2>
+                        <div id="characters-list" class="compact-card">
+                            <p style="color: #888;">Ei hahmoja vielä</p>
+                        </div>
+                        
+                        <h2>📜 VIIMEISIMMÄT TAPAHTUMAT</h2>
+                        <div id="master-log"></div>
+                    </div>
+                    
+                    <!-- Right Column: Quick Info -->
+                    <div>
+                        <h2>ℹ️ PELIN TILA</h2>
+                        <div class="compact-card">
+                            <div class="stat-row">
+                                <span><strong>Vaihe:</strong></span>
+                                <span id="current-phase-display">Alku</span>
+                            </div>
+                            <div class="stat-row">
+                                <span><strong>Pelaajia:</strong></span>
+                                <span id="player-count">0</span>
+                            </div>
+                            <div class="stat-row">
+                                <span><strong>Aikaa jäljellä:</strong></span>
+                                <span id="time-display">Ikuinen</span>
+                            </div>
+                        </div>
+                        
+                        <h2>🤖 LLM STATUS</h2>
+                        <div class="compact-card">
+                            <div style="margin-bottom: 8px;">
+                                <strong>Provider:</strong> <span id="llm-provider" style="color: #0ff;">OpenRouter / Ollama</span>
+                            </div>
+                            <div style="margin-bottom: 8px;">
+                                <strong>Model:</strong> <span id="llm-model" style="color: #0ff;">Katso palvelimen konsoli</span>
+                            </div>
+                            <div id="llm-activity" style="margin-top: 10px; padding: 8px; background: #1a1a1a; border-left: 3px solid #666; display: none;">
+                                <div style="color: #ff0;">⏳ <span id="activity-text">Processing...</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CONTROL PANEL TAB -->
+            <div id="tab-control" class="tab-content">
+                <h2>🎭 PELINJOHTAJAN OHJEISTUS</h2>
+                <div class="card">
+                    <p style="color: #888; font-size: 0.9rem; margin-bottom: 10px;">
+                        Lähetä kirjoitusmuotoinen ohjeistus AI-agenteille. Tämä tieto lisätään dramaturgia-kontekstiin "Pelinjohtajan huomiot" -otsikon alle.
+                    </p>
+                    <textarea id="gm-notes" placeholder="Esim: 'Lisää jännitettä seuraavassa kohtauksessa', 'Anna pelaajille mahdollisuus tutkia kirjastoa', 'Vältä toistamasta samoja teemoja'..." style="width: 98%; min-height: 120px;"></textarea>
+                    <button class="btn" onclick="sendGMNotes()" style="margin-top: 10px;">📤 LÄHETÄ OHJEISTUS</button>
+                    <div id="gm-notes-status" style="margin-top: 10px; color: #0f0; display: none;"></div>
+                </div>
                 
-                <!-- Peli-ajastin -->
-                <div style="margin-bottom: 20px; padding: 15px; background: #0a0a0a; border: 1px solid #ff6b6b;">
-                    <h3 style="margin-bottom: 10px; font-size: 1rem;">Pelin Kesto</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                    <div>
+                        <h2>🎬 MAAILMAN KUVAUS</h2>
+                        <div class="card">
+                            <p style="color: #888; font-size: 0.9rem;">Muokkaa maailman kuvausta kesken pelin.</p>
+                            <textarea id="live-setting" style="width: 98%; min-height: 100px;"></textarea>
+                            <button class="btn" onclick="updateLiveSetting()" style="margin-top: 10px;">📝 PÄIVITÄ SETTING</button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h2>📖 PELIN VAIHE</h2>
+                        <div class="card">
+                            <p style="color: #888; font-size: 0.9rem;">Päivitä nykyinen pelin vaihe.</p>
+                            <input type="text" id="game-phase-name" placeholder="esim. 'Alku', 'Kliimaksi'..." value="Alku" style="width: 100%; padding: 10px; font-size: 1rem; margin: 10px 0;">
+                            <button class="btn" onclick="updateGamePhase()">📝 PÄIVITÄ VAIHE</button>
+                        </div>
+                        
+                        <h2>🤖 AI DRAMATURGI</h2>
+                        <div class="card">
+                            <button class="btn" onclick="analyzeGameState()">🎭 PYYDÄ ANALYYSI</button>
+                            <div id="ai-analysis" style="margin-top: 15px; padding: 15px; background: #1a1a1a; border-left: 3px solid #6bff6b; display: none; white-space: pre-wrap; font-size: 0.9rem;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SETTINGS TAB -->
+            <div id="tab-settings" class="tab-content">
+                <h2>⏱️ PELIN AJASTUS</h2>
+                <div class="card">
                     <div style="margin-bottom: 10px;">
-                        <label>
+                        <label style="display: inline;">
                             <input type="radio" name="timer-mode" value="infinite" checked onchange="updateTimerMode()"> 
                             Ikuinen (ei aikarajaa)
                         </label>
                     </div>
                     <div style="margin-bottom: 10px;">
-                        <label>
+                        <label style="display: inline;">
                             <input type="radio" name="timer-mode" value="timed" onchange="updateTimerMode()"> 
                             Rajattu aika: 
-                            <input type="number" id="timer-minutes" value="120" min="30" max="480" step="30" style="width: 80px; background: #222; color: #0f0; border: 1px solid #0f0; padding: 5px;" disabled>
-                            minuuttia
                         </label>
+                        <input type="number" id="timer-minutes" value="120" min="30" max="480" step="30" style="width: 80px; padding: 5px; margin: 0 5px;" disabled>
+                        <span>minuuttia</span>
                     </div>
-                    <div id="timer-display" style="font-size: 1.5rem; font-weight: bold; color: #ff6b6b; margin-top: 10px; display: none;">
+                    <div id="timer-display" style="font-size: 1.5rem; font-weight: bold; color: #ff6b6b; margin: 15px 0; display: none;">
                         Jäljellä: <span id="time-remaining">--:--</span>
                     </div>
-                    <button class="btn" onclick="startGameTimer()" id="start-timer-btn" style="margin-top: 10px; padding: 10px 20px; font-size: 0.9rem;">⏱️ Käynnistä Ajastin</button>
+                    <button class="btn" onclick="startGameTimer()" id="start-timer-btn">⏱️ KÄYNNISTÄ AJASTIN</button>
                 </div>
                 
-                <!-- Pelin Vaihe -->
-                <div style="margin-bottom: 20px; padding: 15px; background: #0a0a0a; border: 1px solid #6b6bff;">
-                    <h3 style="margin-bottom: 10px; font-size: 1rem;">Nykyinen Pelin Vaihe</h3>
-                    <input type="text" id="game-phase-name" placeholder="esim. 'Alku', 'Jännite kasvaa', 'Kliimaksi'..." value="Alku"
-                           style="width: 100%; background: #222; color: #0f0; border: 1px solid #0f0; padding: 10px; font-size: 1rem; margin-bottom: 10px;">
-                    <button class="btn" onclick="updateGamePhase()" style="padding: 10px 20px; font-size: 0.9rem;">📝 Päivitä Vaihe Manuaalisesti</button>
-                </div>
-                
-                <!-- AI Dramaturgi -->
-                <div style="padding: 15px; background: #0a0a0a; border: 1px solid #6bff6b;">
-                    <h3 style="margin-bottom: 10px; font-size: 1rem;">🤖 AI Dramaturgi</h3>
-                    <div style="margin-bottom: 10px;">
-                        <label>
-                            <input type="checkbox" id="auto-phase-check" onchange="toggleAutoPhaseCheck()"> 
-                            Automaattinen tilanneanalyysi
-                        </label>
-                        <span style="margin-left: 10px;">joka</span>
-                        <input type="number" id="auto-interval" value="15" min="5" max="60" step="5" 
-                               style="width: 60px; background: #222; color: #0f0; border: 1px solid #0f0; padding: 5px; margin: 0 5px;">
-                        <span>minuutti</span>
-                    </div>
-                    <button class="btn" onclick="analyzeGameState()" style="padding: 10px 20px; font-size: 0.9rem;">🎭 Pyydä Tilanneanalyysi Nyt</button>
-                    <div id="ai-analysis" style="margin-top: 15px; padding: 15px; background: #1a1a1a; border-left: 3px solid #6bff6b; display: none; white-space: pre-wrap;"></div>
-                </div>
-            </div>
-
-            <div class="card" style="margin-bottom: 20px;">
-                <h2 style="margin-top: 0; border: none;">🎬 LIVE SETTING CONTROL</h2>
-                <p style="color: #888; font-size: 0.9rem;">Muokkaa maailman kuvausta kesken pelin. Vaikuttaa kaikkiin uusiin AI-generaatioihin.</p>
-                <textarea id="live-setting" style="width: 98%; min-height: 100px;"></textarea>
-                <button class="btn" style="margin-top: 10px; padding: 10px 20px; font-size: 1rem;" onclick="updateLiveSetting()">📝 PÄIVITÄ SETTING</button>
-            </div>
-
-            <div class="grid">
-                <div>
-                    <h2>🤖 LLM STATUS</h2>
-                    <div class="card" style="background: #0a0a1a;">
-                        <div style="margin-bottom: 10px;">
-                            <strong>Provider:</strong> <span id="llm-provider" style="color: #0ff;">-</span>
-                        </div>
-                        <div style="margin-bottom: 10px;">
-                            <strong>Model:</strong> <span id="llm-model" style="color: #0ff;">-</span>
-                        </div>
-                        <div style="margin-bottom: 10px;">
-                            <strong>World Analyzer:</strong> <span id="analyzer-model" style="color: #0ff;">-</span>
-                        </div>
-                        <div id="llm-activity" style="margin-top: 15px; padding: 10px; background: #1a1a1a; border-left: 3px solid #666; display: none;">
-                            <div style="color: #ff0;">⏳ <span id="activity-text">Processing...</span></div>
-                        </div>
-                    </div>
-
-                    <h2>🌍 WORLD ELEMENTS</h2>
-                    <div class="card" style="background: #0a1a0a;">
-                        <h3 style="font-size: 0.9rem; margin-top: 0; color: #6f6;">Places (<span id="places-count">0</span>)</h3>
-                        <div id="places-list" style="font-size: 0.85rem; color: #afa; margin-bottom: 15px;">Ei paikkoja vielä</div>
-                        
-                        <h3 style="font-size: 0.9rem; color: #6cf;">NPCs (<span id="npcs-count">0</span>)</h3>
-                        <div id="npcs-list" style="font-size: 0.85rem; color: #acf; margin-bottom: 15px;">Ei NPC:itä vielä</div>
-                        
-                        <h3 style="font-size: 0.9rem; color: #fc6;">Items (<span id="items-count">0</span>)</h3>
-                        <div id="items-list" style="font-size: 0.85rem; color: #fda;">Ei esineitä vielä</div>
-                    </div>
-
-                    <h2>👥 CHARACTERS</h2>
-                    <div id="characters-list" class="card" style="background: #1a0a1a;">
-                        <p style="color: #888;">Ei hahmoja vielä</p>
-                    </div>
-                </div>
-
-                <div>
-                    <h2>📜 LIVE LOG FEED</h2>
-                    <div id="master-log"></div>
+                <h2>🤖 AUTOMAATTINEN DRAMATURGIA-ANALYYSI</h2>
+                <div class="card">
+                    <label style="display: inline;">
+                        <input type="checkbox" id="auto-phase-check" onchange="toggleAutoPhaseCheck()"> 
+                        Automaattinen tilanneanalyysi
+                    </label>
+                    <span style="margin-left: 10px;">joka</span>
+                    <input type="number" id="auto-interval" value="15" min="5" max="60" step="5" style="width: 60px; padding: 5px; margin: 0 5px;">
+                    <span>minuutti</span>
                 </div>
             </div>
         </div>
@@ -190,7 +228,7 @@
                 availableTemplates.forEach(template => {
                     const option = document.createElement('option');
                     option.value = template.id;
-                    option.textContent = `${template.name} - ${template.description}`;
+                    option.textContent = template.name || template.id || 'Unnamed Template';
                     selector.appendChild(option);
                 });
             } catch (error) {
@@ -353,6 +391,7 @@
             
             if (remaining <= 0) {
                 document.getElementById('time-remaining').textContent = '00:00';
+                document.getElementById('time-display').textContent = 'Aika loppui';
                 clearInterval(timerInterval);
                 alert('⏰ Peli-aika loppui!');
                 return;
@@ -360,8 +399,10 @@
             
             const minutes = Math.floor(remaining / 60000);
             const seconds = Math.floor((remaining % 60000) / 1000);
-            document.getElementById('time-remaining').textContent = 
-                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            document.getElementById('time-remaining').textContent = timeStr;
+            document.getElementById('time-display').textContent = timeStr;
         }
 
         // === PHASE FUNKTIOT ===
@@ -410,6 +451,61 @@
         socket.on('timer_updated', (timer) => {
             console.log('⏱️ Ajastin päivitetty:', timer);
         });
+
+        // === TAB SWITCHING ===
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById('tab-' + tabName).classList.add('active');
+            
+            // Activate the clicked button
+            const buttons = document.querySelectorAll('.tab-btn');
+            if (tabName === 'overview') buttons[0].classList.add('active');
+            else if (tabName === 'control') buttons[1].classList.add('active');
+            else if (tabName === 'settings') buttons[2].classList.add('active');
+        }
+
+        // === GM NOTES FUNCTIONALITY ===
+        function sendGMNotes() {
+            const notes = document.getElementById('gm-notes').value.trim();
+            if (!notes) {
+                alert('Kirjoita ohjeistus ensin!');
+                return;
+            }
+            
+            // Send GM notes to server
+            socket.emit('gm_notes', { notes: notes, timestamp: new Date().toISOString() });
+            
+            // Show status
+            const statusDiv = document.getElementById('gm-notes-status');
+            statusDiv.textContent = '✅ Ohjeistus lähetetty!';
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+            
+            console.log('📝 GM Notes sent:', notes);
+        }
+
+        // Update player count when characters change
+        function updatePlayerCount() {
+            const chars = document.querySelectorAll('#characters-list .character-item');
+            document.getElementById('player-count').textContent = chars.length;
+        }
+
+        // Update phase display in overview
+        function updatePhaseDisplay(phase) {
+            document.getElementById('current-phase-display').textContent = phase || 'Alku';
+            document.getElementById('game-phase-name').value = phase || 'Alku';
+        }
 
         function startGame() {
             const templateId = document.getElementById('template-selector').value;
@@ -480,85 +576,69 @@
             
             if (chars.length === 0) {
                 charList.innerHTML = '<p style="color: #888;">Ei hahmoja vielä</p>';
+                updatePlayerCount();
                 return;
             }
             
             charList.innerHTML = chars.map((char, idx) => {
-                // Build memories details (collapsed by default, expandable)
-                let memoriesDetails = '';
-                
-                if (char.memory?.key_moments && char.memory.key_moments.length > 0) {
-                    const moments = char.memory.key_moments
-                        .slice(-3) // Last 3
-                        .map(m => `<li style="margin: 3px 0;">${m.content}</li>`)
-                        .join('');
-                    memoriesDetails += `<div id="memories-${idx}" style="display: none; margin-top: 8px; padding: 8px; background: #0a0a0a; border-left: 2px solid #0f0; font-size: 0.8rem;">
-                        <strong style="color: #6bff6b;">Viimeisimmät muistot:</strong>
-                        <ul style="margin: 5px 0 0 15px; color: #0a0;">${moments}</ul>
-                    </div>`;
-                }
-                
-                if (char.memory?.relationships && Object.keys(char.memory.relationships).length > 0) {
-                    const rels = Object.entries(char.memory.relationships)
-                        .map(([targetId, rel]) => {
-                            const intensityBar = '█'.repeat(rel.intensity) + '░'.repeat(5 - rel.intensity);
-                            return `<li style="margin: 3px 0;"><strong style="color: #0ff;">${targetId}</strong>: ${rel.value} ${intensityBar}</li>`;
-                        })
-                        .join('');
-                    memoriesDetails += `<div id="relationships-${idx}" style="display: none; margin-top: 8px; padding: 8px; background: #0a0a0a; border-left: 2px solid #0ff; font-size: 0.8rem;">
-                        <strong style="color: #6bffff;">Suhteet:</strong>
-                        <ul style="margin: 5px 0 0 15px; color: #0aa;">${rels}</ul>
-                    </div>`;
-                }
-                
-                const keyMoments = char.memory?.key_moments ? 
-                    `<div style="font-size: 0.8rem; color: #aaa; margin-top: 5px; cursor: pointer;" onclick="toggleMemories(${idx})">🧠 ${char.memory.key_moments.length} key moments <span style="color: #666;">▼</span></div>` : '';
-                const relationships = char.memory?.relationships && Object.keys(char.memory.relationships).length > 0 ? 
-                    `<div style="font-size: 0.8rem; color: #aaf; margin-top: 5px;">👥 ${Object.keys(char.memory.relationships).length} relationships</div>` : '';
+                // Build compact character card
+                const momentsCount = char.memory?.key_moments?.length || 0;
+                const relsCount = char.memory?.relationships ? Object.keys(char.memory.relationships).length : 0;
                 
                 return `
-                    <div style="border-bottom: 1px solid #333; padding: 10px 0;">
-                        <strong style="color: #0ff;">${char.name}</strong>
-                        <span style="color: #666; font-size: 0.8rem; margin-left: 10px;">(${char.status})</span>
-                        <div style="font-size: 0.8rem; color: #888; margin-top: 3px;">${char.description?.substring(0, 80)}...</div>
-                        ${keyMoments}
-                        ${relationships}
-                        ${memoriesDetails}
+                    <div class="character-item" style="border: 1px solid #333; padding: 10px; margin-bottom: 10px; background: #0a0a0a;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="color: #0ff; font-size: 1.1rem;">${char.name}</strong>
+                            <button onclick="toggleCharDetails(${idx})" style="background: #333; color: #0f0; border: none; padding: 5px 10px; cursor: pointer; font-size: 0.8rem;">
+                                <span id="toggle-${idx}">▼ Lisätiedot</span>
+                            </button>
+                        </div>
+                        <div style="color: #888; font-size: 0.85rem; margin-top: 5px;">
+                            ${momentsCount} muistoa | ${relsCount} suhdetta
+                        </div>
+                        <div id="char-details-${idx}" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; font-size: 0.85rem;">
+                            ${char.description ? `<p style="color: #aaa; margin: 5px 0;">${char.description.substring(0, 150)}...</p>` : ''}
+                            ${char.memory?.key_moments && char.memory.key_moments.length > 0 ? `
+                                <div style="margin-top: 8px;">
+                                    <strong style="color: #6bff6b;">Viimeisimmät muistot:</strong>
+                                    <ul style="margin: 5px 0 0 15px; color: #0a0;">
+                                        ${char.memory.key_moments.slice(-2).map(m => `<li>${m.content}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
+            
+            updatePlayerCount();
         }
         
-        // Toggle memories visibility
-        function toggleMemories(idx) {
-            const memoriesDiv = document.getElementById(`memories-${idx}`);
-            const relsDiv = document.getElementById(`relationships-${idx}`);
-            if (memoriesDiv) {
-                memoriesDiv.style.display = memoriesDiv.style.display === 'none' ? 'block' : 'none';
-            }
-            if (relsDiv) {
-                relsDiv.style.display = relsDiv.style.display === 'none' ? 'block' : 'none';
+        function toggleCharDetails(idx) {
+            const details = document.getElementById(`char-details-${idx}`);
+            const toggle = document.getElementById(`toggle-${idx}`);
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                toggle.textContent = '▲ Piilota';
+            } else {
+                details.style.display = 'none';
+                toggle.textContent = '▼ Lisätiedot';
             }
         }
-
-        // Vastaanota serverin IP-tiedot
-        socket.on('server_info', (info) => {
-            const playerUrl = `http://${info.ip}:${info.port}/`;
-            document.getElementById('player-url').innerText = playerUrl;
-
-            // Generoi QR-koodi
-            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(playerUrl)}`;
-            document.getElementById('qr-container').innerHTML = `<img src="${qrApiUrl}" alt="QR Code" style="border: 2px solid #0f0;">`;
+        
+        // Vastaanota pelin tilan synkronointi
+        socket.on('sync_state', (data) => {
+            console.log('🎮 Sync state received:', data);
+            gameConfig = data.gameConfig || {};
             
-            // Näytä LLM status (jos saatavilla)
-            if (info.llmProvider) {
-                document.getElementById('llm-provider').textContent = info.llmProvider.toUpperCase();
-                document.getElementById('llm-model').textContent = info.llmModel || 'Unknown';
-                document.getElementById('analyzer-model').textContent = info.analyzerModel || 'Unknown';
+            if (data.characters) {
+                updateCharacters(data.characters);
+            }
+            
+            if (data.gameConfig?.currentPhase) {
+                updatePhaseDisplay(data.gameConfig.currentPhase.name);
             }
         });
-
-        // world_update removed - using character_updated events instead
         
         // Kuuntele character_joined eventejä (uusi kognitiivinen muisti-arkkitehtuuri)
         socket.on('character_joined', (character) => {
@@ -625,7 +705,8 @@
         // Synkkaa historia
         socket.on('sync_state', (data) => {
             const masterLog = document.getElementById('master-log');
-            data.story.forEach(entry => {
+            const storyEntries = data.story?.entries || [];
+            storyEntries.forEach(entry => {
                 const entryDiv = document.createElement('div');
                 entryDiv.className = entry.playerSubmitted ? 'card log-entry player-action' : 'card log-entry';
                 
