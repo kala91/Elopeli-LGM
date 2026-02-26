@@ -75,8 +75,8 @@ Elopeli-LGM/
 ├── llm/
 │   ├── apiClient.ts         # LLM provider interface
 │   ├── promptAgent.ts       # Action prompt generation
-│   ├── memoryExtractor.ts   # Memory extraction
-│   ├── characterCreator.ts  # Character generation
+│   ├── memoryExtractorAgent.ts   # Memory extraction agent
+│   ├── characterCreatorAgent.ts  # Character generation agent
 │   ├── tutorialAgent.ts     # Tutorial conversations
 │   └── dramaturgAgent.ts    # Dramaturgical analysis
 ├── public/                  # Client-side HTML/JS

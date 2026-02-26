@@ -1,6 +1,6 @@
 import { LANGUAGES, GAME } from '../config/constants';
 
-export async function extractMemories(
+export async function extractMemoriesAgent(
   recentEntries: any[],
   participantCharIds: string[],
   availableRelationships: string[],
@@ -19,7 +19,7 @@ export async function extractMemories(
   const prompt = `Extract dramatic memory moments from entries. Participants: ${participantsWithLanguages}. Allowed relationships: ${relationshipTypes}. Entries:\n${storyContext}\nReturn ONLY JSON by charId with key_moments[] and relationshipChanges[].`;
 
   try {
-    const response = await askLLM(prompt, 'memory_extraction', 'MemoryExtractor', { useAnalyzerModel: true, module: 'MemoryExtractor' });
+    const response = await askLLM(prompt, 'memory_extraction', 'MemoryExtractorAgent', { useAnalyzerModel: true, module: 'MemoryExtractorAgent' });
     const jsonMatch = response.match(/```json\n?([\s\S]*?)\n?```/) || response.match(/{[\s\S]*}/);
     if (!jsonMatch) return {};
     const cleanJson = jsonMatch[0].replace(/```json\n?/, '').replace(/\n?```/, '');
