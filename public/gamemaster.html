@@ -10,31 +10,62 @@
 
     <div id="config-screen" class="visible">
         <div class="container">
-            <h1>🎮 GAME MASTER CONSOLE - KONFIGURAATIO</h1>
-            <p>Aseta pelimaailman ja promptien parametrit ennen pelin aloitusta.</p>
-            
-            <div style="margin-bottom: 25px; background: #1a1a1a; padding: 15px; border: 1px solid #0f0;">
+            <h1>🎮 GAME MASTER CONSOLE - KÄYNNISTYS</h1>
+            <p>Käy asetukset läpi vaiheittain: valitse peli, säädä LLM-asetukset ja käynnistä peli.</p>
+
+            <div class="setup-section">
+                <h2>1) Pelivalinta</h2>
                 <label style="margin-top: 0;">VALITSE PELITEMPLAATTI:</label>
-                <select id="template-selector" style="background: #222; border: 1px solid #0f0; color: #0f0; padding: 10px; width: 100%; font-size: 1rem; margin-top: 10px;">
+                <select id="template-selector" class="setup-input">
                     <option value="">-- Tyhjä (kirjoita itse) --</option>
                 </select>
-                <button class="btn" style="padding: 10px 20px; font-size: 0.9rem; margin-top: 10px;" onclick="loadSelectedTemplate()">📥 LATAA VALITTU</button>
-                <button class="btn" style="padding: 10px 20px; font-size: 0.9rem; margin-top: 10px; background: #f90; margin-left: 10px;" onclick="saveCurrentAsTemplate()">💾 TALLENNA UUSI</button>
+                <div class="inline-actions">
+                    <button class="btn" style="padding: 10px 20px; font-size: 0.9rem;" onclick="loadSelectedTemplate()">📥 LATAA VALITTU</button>
+                    <button class="btn" style="padding: 10px 20px; font-size: 0.9rem; background: #f90;" onclick="saveCurrentAsTemplate()">💾 TALLENNA UUSI</button>
+                </div>
+
+                <label>MAAILMAN KUVAUS (Setting):</label>
+                <textarea id="world-setting">Ladataan...</textarea>
             </div>
-            
-            <label>MAAILMAN KUVAUS (Setting):</label>
-            <textarea id="world-setting">Ladataan...</textarea>
+
+            <div class="setup-section">
+                <h2>2) LLM-asetukset</h2>
+                <label>Provider</label>
+                <select id="llm-provider-select" class="setup-input" onchange="onLLMProviderChange()">
+                    <option value="ollama">Ollama</option>
+                    <option value="openrouter">OpenRouter</option>
+                </select>
+
+                <label>Malli</label>
+                <input type="text" id="llm-model-input" class="setup-input" placeholder="esim. ministral-3:latest">
+
+                <div id="ollama-url-group">
+                    <label>Ollama-palvelimen osoite</label>
+                    <input type="text" id="ollama-base-url" class="setup-input" placeholder="http://localhost:11434">
+                    <small style="color: #8f8;">Oletuksena paikallinen Ollama. Voit antaa myös ulkoisen osoitteen.</small>
+                </div>
+
+                <div id="openrouter-key-group" style="display:none; margin-top: 12px;">
+                    <label>OpenRouter API Key</label>
+                    <input type="password" id="openrouter-api-key" class="setup-input" placeholder="sk-or-v1-...">
+                    <div style="margin-top: 8px;">
+                        <input type="checkbox" id="use-stored-secret" checked>
+                        <label class="checkbox-label" for="use-stored-secret">Jos kenttä on tyhjä, käytä tallennettua secretiä</label>
+                    </div>
+                </div>
+            </div>
             
             <!-- Piilotetut promptit - tarvitaan serverille mutta ei näytetä käyttäjälle -->
             <input type="hidden" id="char-prompt-template" value="">
             <input type="hidden" id="scene-prompt-template" value="">
             
-            <div style="margin-top: 20px;">
+            <div class="setup-section" style="margin-top: 20px;">
+                <h2>3) Käynnistys</h2>
                 <input type="checkbox" id="clear-world" checked>
                 <label class="checkbox-label" for="clear-world">Tyhjennä maailma ja lokit aloitettaessa</label>
             </div>
             
-            <button class="btn" onclick="startGame()">▶ ALOITA PELI</button>
+            <button class="btn" onclick="startGame()">▶ KÄYNNISTÄ PELI</button>
         </div>
     </div>
 
@@ -179,6 +210,36 @@
         const socket = io();
         let gameConfig = {};
         let availableTemplates = [];
+        const llmDefaults = {
+            ollamaBaseUrl: 'http://localhost:11434',
+            ollamaModel: 'ministral-3:latest',
+            openrouterModel: 'google/gemini-2.0-flash-exp:free'
+        };
+
+        function onLLMProviderChange() {
+            const provider = document.getElementById('llm-provider-select').value;
+            const ollamaGroup = document.getElementById('ollama-url-group');
+            const openrouterGroup = document.getElementById('openrouter-key-group');
+            const modelInput = document.getElementById('llm-model-input');
+
+            if (provider === 'openrouter') {
+                ollamaGroup.style.display = 'none';
+                openrouterGroup.style.display = 'block';
+                if (!modelInput.value.trim() || modelInput.value === llmDefaults.ollamaModel) {
+                    modelInput.value = llmDefaults.openrouterModel;
+                }
+            } else {
+                ollamaGroup.style.display = 'block';
+                openrouterGroup.style.display = 'none';
+                if (!modelInput.value.trim() || modelInput.value === llmDefaults.openrouterModel) {
+                    modelInput.value = llmDefaults.ollamaModel;
+                }
+                const urlInput = document.getElementById('ollama-base-url');
+                if (!urlInput.value.trim()) {
+                    urlInput.value = llmDefaults.ollamaBaseUrl;
+                }
+            }
+        }
 
         // Lataa saatavilla olevat pelitemplaatit
         async function loadTemplates() {
@@ -286,9 +347,23 @@
             try {
                 const response = await fetch('/api/default-config');
                 const config = await response.json();
-                document.getElementById('world-setting').value = config.setting;
-                document.getElementById('char-prompt-template').value = config.charPromptTemplate;
-                document.getElementById('scene-prompt-template').value = config.scenePromptTemplate;
+
+                document.getElementById('world-setting').value = config.setting || '';
+                document.getElementById('char-prompt-template').value = config.charPromptTemplate || '';
+                document.getElementById('scene-prompt-template').value = config.scenePromptTemplate || '';
+
+                llmDefaults.ollamaBaseUrl = config.defaults?.ollamaBaseUrl || llmDefaults.ollamaBaseUrl;
+                llmDefaults.ollamaModel = config.defaults?.ollamaModel || llmDefaults.ollamaModel;
+                llmDefaults.openrouterModel = config.defaults?.openrouterModel || llmDefaults.openrouterModel;
+
+                const llm = config.llm || {};
+                document.getElementById('llm-provider-select').value = llm.provider || 'ollama';
+                document.getElementById('llm-model-input').value = llm.model || llmDefaults.ollamaModel;
+                document.getElementById('ollama-base-url').value = llm.baseUrl || llmDefaults.ollamaBaseUrl;
+                document.getElementById('openrouter-api-key').value = llm.apiKey || '';
+                document.getElementById('use-stored-secret').checked = llm.useStoredSecret !== false;
+
+                onLLMProviderChange();
             } catch (error) {
                 console.error('Virhe ladattaessa konfiguraatiota:', error);
             }
@@ -475,13 +550,31 @@
             
             // Jos ei ole valittu templateä eikä kirjoitettu settingiä
             if (!templateId && !customSetting) {
-                alert('Valitse pelitemplate TAI kirjoita oma setting!');
+                alert('Valitse pelitemplaatti tai kirjoita maailman kuvaus!');
                 return;
             }
             
+            const selectedProvider = document.getElementById('llm-provider-select').value;
+            const llmModel = document.getElementById('llm-model-input').value.trim();
+            const ollamaBaseUrl = document.getElementById('ollama-base-url').value.trim() || llmDefaults.ollamaBaseUrl;
+            const openrouterApiKey = document.getElementById('openrouter-api-key').value.trim();
+            const useStoredSecret = document.getElementById('use-stored-secret').checked;
+
+            if (!llmModel) {
+                alert('Anna käytettävä mallinimi!');
+                return;
+            }
+
             gameConfig = {
                 templateId: templateId || null,
                 setting: customSetting || null,
+                llm: {
+                    provider: selectedProvider,
+                    model: llmModel,
+                    baseUrl: ollamaBaseUrl,
+                    apiKey: openrouterApiKey,
+                    useStoredSecret: useStoredSecret
+                },
                 clearWorld: document.getElementById('clear-world').checked,
                 timedMode: document.querySelector('input[name="timer-mode"]:checked').value === 'timed',
                 totalMinutes: parseInt(document.getElementById('timer-minutes').value) || 120,
@@ -490,6 +583,9 @@
 
             // Lähetä config serverille
             socket.emit('gm_initialize', gameConfig);
+
+            document.getElementById('llm-provider').textContent = selectedProvider === 'openrouter' ? 'OpenRouter' : 'Ollama';
+            document.getElementById('llm-model').textContent = llmModel;
 
             // Näytä master screen
             document.getElementById('config-screen').classList.remove('visible');

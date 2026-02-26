@@ -19,7 +19,7 @@ import {
   clearAllCharacters
 } from './utils/dataManager';
 import { validatePlayerName, validateLanguage } from './utils/validators';
-import { askLLM, API_PROVIDER, MODEL } from './llm/apiClient';
+import { askLLM, API_PROVIDER, MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL, OPENROUTER_MODEL } from './llm/apiClient';
 import { buildActionPrompt } from './llm/promptAgent';
 import { extractMemories } from './llm/memoryExtractor';
 import { buildDramaturgyPrompt } from './llm/dramaturgAgent';
@@ -115,6 +115,32 @@ app.get('/api/game-templates/:id', (req, res) => {
   }
 });
 
+
+app.get('/api/default-config', (_req, res) => {
+  try {
+    const gameConfig = loadGameConfig();
+    res.json({
+      setting: gameConfig.setting || '',
+      charPromptTemplate: '',
+      scenePromptTemplate: '',
+      llm: gameConfig.llm || {
+        provider: API_PROVIDER === 'openrouter' ? 'openrouter' : 'ollama',
+        model: MODEL,
+        baseUrl: OLLAMA_BASE_URL,
+        apiKey: '',
+        useStoredSecret: true
+      },
+      defaults: {
+        ollamaBaseUrl: OLLAMA_BASE_URL,
+        ollamaModel: OLLAMA_MODEL,
+        openrouterModel: OPENROUTER_MODEL
+      }
+    });
+  } catch {
+    res.status(500).json({ error: 'Virhe ladattaessa oletuskonfiguraatiota' });
+  }
+});
+
 app.get('/api/characters', (_req, res) => {
   try { res.json(getAllCharacterIds().map(loadCharacter).filter(Boolean)); }
   catch { res.status(500).json({ error: ERROR_MESSAGES.ERROR_LOADING_CHARACTERS }); }
@@ -151,12 +177,22 @@ io.on('connection', socket => {
         physicalPropsGuidance = templateContent.match(/## Physical Props Guidance\s+([^#]+)/)?.[1]?.trim() || physicalPropsGuidance;
       }
 
+      const provider = config.llm?.provider === 'openrouter' ? 'openrouter' : 'ollama';
+      const defaultLlmModel = provider === 'openrouter' ? OPENROUTER_MODEL : OLLAMA_MODEL;
+
       const gameConfig: any = {
         setting: setting || config.setting || '',
         currentPhase: { name: 'Alku', description: 'Peli alkaa' },
         availableRelationships,
         physicalPropsGuidance,
         themes,
+        llm: {
+          provider,
+          model: (config.llm?.model || defaultLlmModel).trim(),
+          baseUrl: (config.llm?.baseUrl || OLLAMA_BASE_URL).trim().replace(/\/$/, ''),
+          apiKey: (config.llm?.apiKey || '').trim(),
+          useStoredSecret: config.llm?.useStoredSecret !== false
+        },
         gameTimer: {
           mode: config.timedMode ? 'timed' : 'infinite',
           totalMinutes: config.totalMinutes || null,
