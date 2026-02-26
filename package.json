@@ -2,13 +2,20 @@
   "name": "elopeli-lgm",
   "version": "1.0.0",
   "description": "AI-ohjattu digitaalinen LARP-moottori (Digital LARP Engine with AI)",
-  "main": "server.js",
+  "main": "dist/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "test": "echo \"No tests configured yet\" && exit 0"
+    "build": "tsc --noCheck",
+    "start": "npm run build && node dist/server.js",
+    "dev": "npm run build && node --watch dist/server.js",
+    "test": "npm run build"
   },
-  "keywords": ["larp", "ai", "game-engine", "improvisation", "roleplay"],
+  "keywords": [
+    "larp",
+    "ai",
+    "game-engine",
+    "improvisation",
+    "roleplay"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {

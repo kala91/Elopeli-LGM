@@ -41,6 +41,8 @@ OLLAMA_MODEL=gemma2
 
 ```bash
 npm start
+# kehitysajo
+npm run dev
 ```
 
 Palvelin käynnistyy portissa 3000:
@@ -74,6 +76,7 @@ Palvelin käynnistyy portissa 3000:
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Arkkitehtuuri ja tietovirta
 - **[docs/taxonomy.md](docs/taxonomy.md)** - Dramaturgiset työvälineet (analyyttinen muistikirja)
+- **[docs/TYPESCRIPT_MIGRATION.md](docs/TYPESCRIPT_MIGRATION.md)** - Vaiheittainen suunnitelma TypeScript-siirtymään
 
 ## 🔧 Pelitemplaatit
 
@@ -104,7 +107,7 @@ Lue lisää: [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ```
 .
-├── server.js                   # Pelimoottori (Socket.io + Express)
+├── server.ts                   # Pelimoottori (Socket.io + Express, TypeScript)
 ├── package.json
 ├── .env                        # Kielimalli-konfiguraatio
 │
@@ -116,7 +119,7 @@ Lue lisää: [ARCHITECTURE.md](ARCHITECTURE.md)
 │   ├── characters/             # Hahmojen muisti (JSON)
 │   └── game_library/           # Pelitemplaatit (Markdown)
 │
-├── llm/                        # Oneshot LLM-agentit
+├── llm/                        # Oneshot LLM-agentit (TypeScript)
 │   ├── tutorialAgent.js        # Opastus + hahmonluonti
 │   ├── characterCreator.js     # Hahmon generointi
 │   ├── promptAgent.js          # Toimintaohjeet
