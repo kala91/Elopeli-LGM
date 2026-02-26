@@ -1,0 +1,38 @@
+        body { font-family: 'Courier New', Courier, monospace; background: #111; color: #0f0; padding: 0; margin: 0; }
+        h1 { font-size: 1.5rem; border-bottom: 2px solid #0f0; padding-bottom: 10px; margin-top: 0; }
+        h2 { font-size: 1.2rem; color: #0f0; margin-top: 20px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        h3 { font-size: 1rem; color: #0f0; margin-top: 15px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .btn { background: #0f0; color: #000; border: none; padding: 12px 24px; font-size: 1rem; font-weight: bold; cursor: pointer; margin: 5px; }
+        .btn:hover { background: #0c0; }
+        .btn:active { background: #0a0; }
+        .btn-secondary { background: #555; color: #0f0; }
+        .btn-secondary:hover { background: #666; }
+        .card { border: 1px solid #333; padding: 15px; margin-bottom: 15px; background: #000; }
+        .timestamp { color: #666; font-size: 0.8rem; }
+        textarea { background: #222; border: 1px solid #0f0; color: #fff; padding: 10px; width: 95%; font-family: inherit; min-height: 80px; }
+        input[type="text"], input[type="number"] { background: #222; border: 1px solid #0f0; color: #0f0; padding: 8px; font-family: inherit; }
+        label { display: block; margin-top: 10px; margin-bottom: 5px; color: #0f0; font-weight: bold; font-size: 0.9rem; }
+        .checkbox-label { display: inline-block; margin-left: 10px; font-weight: normal; }
+        #config-screen, #master-screen { display: none; }
+        .visible { display: block !important; }
+        .log-entry { border-left: 3px solid #0f0; padding-left: 10px; margin-bottom: 10px; }
+        .log-entry.player-action { border-left-color: #00f; color: #88f; }
+        
+        /* Tab System */
+        .tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 2px solid #0f0; }
+        .tab-btn { background: #222; color: #0f0; border: none; padding: 15px 30px; font-size: 1.1rem; font-weight: bold; cursor: pointer; border-top: 2px solid #333; border-left: 2px solid #333; border-right: 2px solid #333; margin: 0; }
+        .tab-btn:first-child { border-left: none; }
+        .tab-btn.active { background: #0f0; color: #000; border-top-color: #0f0; }
+        .tab-btn:hover:not(.active) { background: #333; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* Two-column layout for overview */
+        .overview-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        @media (max-width: 900px) { .overview-grid { grid-template-columns: 1fr; } }
+        
+        /* Compact cards */
+        .compact-card { border: 1px solid #333; padding: 12px; margin-bottom: 12px; background: #0a0a0a; }
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    

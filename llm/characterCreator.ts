@@ -1,0 +1,26 @@
+export async function createCharacter(
+  playerName: string,
+  existingCharacters: any[],
+  gameConfig: any,
+  language = 'fi',
+  askLLM: (prompt: string, promptType?: string, characterName?: string, metadata?: Record<string, unknown>) => Promise<string>,
+  characterWishes = ''
+): Promise<any> {
+  const existingCharsContext = existingCharacters?.length
+    ? '\n\n## EXISTING CHARACTERS\n' + existingCharacters.map(c => `- ${c.name}: ${c.description || 'character in game'}`).join('\n')
+    : '';
+  const wishesContext = characterWishes?.trim()
+    ? `\n\n## PLAYER WISHES\n${characterWishes}`
+    : '';
+
+  const prompt = `Create character JSON for player ${playerName}.\nSetting: ${gameConfig.setting}\nThemes: ${(gameConfig.themes || []).join(', ')}\nRelationships: ${(gameConfig.availableRelationships || []).join(', ')}${existingCharsContext}${wishesContext}\nLanguage: ${language}. Return ONLY JSON with description, personality[], goals[], relationships[].`;
+
+  try {
+    const response = await askLLM(prompt, 'character_generation', playerName, { module: 'CharacterCreator' });
+    const match = response.match(/```json\n?([\s\S]*?)\n?```/) || response.match(/{[\s\S]*}/);
+    if (!match) throw new Error('No JSON');
+    return JSON.parse(match[0].replace(/```json\n?/, '').replace(/\n?```/, ''));
+  } catch {
+    return { description: `A character in ${gameConfig.setting || 'this game'}.`, personality: [], goals: [], relationships: [] };
+  }
+}
