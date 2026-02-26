@@ -20,7 +20,7 @@ Thank you for your interest in contributing to the Elopeli-LGM digital LARP engi
 
 - Node.js >= 18.0.0
 - npm >= 8.0.0
-- Basic understanding of JavaScript/Node.js
+- Basic understanding of TypeScript/Node.js
 - (Optional) LLM provider account (OpenRouter or local Ollama)
 
 ### First Steps
@@ -66,19 +66,19 @@ This uses Node.js `--watch` flag to automatically restart on file changes.
 
 ```
 Elopeli-LGM/
-├── server.js                 # Main server (Socket.IO + Express)
+├── server.ts                 # Main server (Socket.IO + Express)
 ├── config/
-│   └── constants.js         # Centralized configuration
+│   └── constants.ts         # Centralized configuration
 ├── utils/
-│   ├── dataManager.js       # File I/O operations
-│   └── validators.js        # Input validation
+│   ├── dataManager.ts       # File I/O operations
+│   └── validators.ts        # Input validation
 ├── llm/
-│   ├── apiClient.js         # LLM provider interface
-│   ├── promptAgent.js       # Action prompt generation
-│   ├── memoryExtractor.js   # Memory extraction
-│   ├── characterCreator.js  # Character generation
-│   ├── tutorialAgent.js     # Tutorial conversations
-│   └── dramaturgAgent.js    # Dramaturgical analysis
+│   ├── apiClient.ts         # LLM provider interface
+│   ├── promptAgent.ts       # Action prompt generation
+│   ├── memoryExtractor.ts   # Memory extraction
+│   ├── characterCreator.ts  # Character generation
+│   ├── tutorialAgent.ts     # Tutorial conversations
+│   └── dramaturgAgent.ts    # Dramaturgical analysis
 ├── public/                  # Client-side HTML/JS
 │   ├── index.html
 │   ├── playerclient.html
@@ -116,9 +116,9 @@ Elopeli-LGM/
 
 ## Coding Standards
 
-### JavaScript Style
+### TypeScript Style
 
-```javascript
+```ts
 // ✅ Good: Clear, documented functions
 /**
  * Load character data from file
@@ -139,12 +139,12 @@ function load(id) {
 ### Code Organization
 
 1. **Use existing utilities:**
-   - `utils/dataManager.js` for file operations
-   - `utils/validators.js` for input validation
-   - `config/constants.js` for configuration
+   - `utils/dataManager.ts` for file operations
+   - `utils/validators.ts` for input validation
+   - `config/constants.ts` for configuration
 
 2. **Error handling:**
-```javascript
+```ts
 // ✅ Good: Proper error handling
 try {
     const data = readJSONFile(filePath, defaultValue);
@@ -159,7 +159,7 @@ const data = JSON.parse(fs.readFileSync(filePath));
 ```
 
 3. **Consistent logging:**
-```javascript
+```ts
 console.log('🎮 Game initialized');      // GM actions
 console.log('👋 Player joined');         // Player events
 console.log('🎭 Generating prompt');     // Prompt generation
@@ -175,7 +175,7 @@ console.log('⚠️ Warning');               // Warnings
 When creating or modifying LLM agents:
 
 1. **Keep agents stateless (oneshot):**
-```javascript
+```ts
 // ✅ Good: Stateless function
 async function generatePrompt(character, gameConfig, askLLM) {
     const prompt = buildPrompt(character, gameConfig);
@@ -191,7 +191,7 @@ class PromptAgent {
 ```
 
 2. **Use structured prompts:**
-```javascript
+```ts
 const prompt = `
 ## ROLE
 You are...
@@ -208,7 +208,7 @@ Return JSON: {...}
 ```
 
 3. **Handle JSON parsing robustly:**
-```javascript
+```ts
 const jsonMatch = response.match(/```json\n?([\s\S]*?)\n?```/) 
     || response.match(/{[\s\S]*}/);
 if (!jsonMatch) {
@@ -221,7 +221,7 @@ if (!jsonMatch) {
 
 Always use the data manager:
 
-```javascript
+```ts
 // ✅ Good: Use dataManager
 const { loadCharacter, saveCharacter } = require('./utils/dataManager');
 
@@ -239,7 +239,7 @@ fs.writeFileSync(`data/characters/${charId}.json`, JSON.stringify(data));
 
 Always validate user input:
 
-```javascript
+```ts
 // ✅ Good: Validate input
 const { validatePlayerName } = require('./utils/validators');
 
@@ -347,7 +347,7 @@ git push origin feature/your-feature-name
 3. Accept `askLLM` as parameter
 4. Document inputs and outputs
 5. Handle errors gracefully
-6. Use `config/constants.js` for configuration
+6. Use `config/constants.ts` for configuration
 
 ### Creating Game Templates
 
