@@ -21,9 +21,9 @@ import {
 import { validatePlayerName, validateLanguage } from './utils/validators';
 import { askLLM, API_PROVIDER, MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL, OPENROUTER_MODEL } from './llm/apiClient';
 import { buildActionPrompt } from './llm/promptAgent';
-import { extractMemories } from './llm/memoryExtractor';
+import { extractMemoriesAgent } from './llm/memoryExtractorAgent';
 import { buildDramaturgyPrompt } from './llm/dramaturgAgent';
-import { createCharacter } from './llm/characterCreator';
+import { createCharacterAgent } from './llm/characterCreatorAgent';
 import { handleTutorial } from './llm/tutorialAgent';
 
 dotenv.config();
@@ -56,7 +56,7 @@ async function processMemoryExtraction(entry: any): Promise<void> {
       participantLanguages[charId] = char?.playerMeta?.language || GAME.DEFAULT_LANGUAGE;
     }
 
-    const memories = await extractMemories(entriesToAnalyze, participantIds, gameConfig.availableRelationships, askLLM, participantLanguages);
+    const memories = await extractMemoriesAgent(entriesToAnalyze, participantIds, gameConfig.availableRelationships, askLLM, participantLanguages);
 
     for (const [charId, charMemories] of Object.entries(memories)) {
       const character = loadCharacter(charId);
@@ -257,7 +257,7 @@ io.on('connection', socket => {
       const gameConfig = loadGameConfig();
       const existingCharacters = getAllCharacterIds().map(loadCharacter).filter(Boolean);
       const characterWishes = tutorialHistory?.filter((msg: any) => msg.role === 'player').map((msg: any) => msg.content).join(' | ') || '';
-      const generated = await createCharacter(playerName, existingCharacters, gameConfig, language || 'fi', askLLM, characterWishes);
+      const generated = await createCharacterAgent(playerName, existingCharacters, gameConfig, language || 'fi', askLLM, characterWishes);
       const character: any = { id: charId, name: playerName, ...generated, status: 'active', memory: { key_moments: [], relationships: {} }, playerMeta: { language: language || 'fi', joinedAt: new Date().toISOString(), sessionCount: 1 } };
       saveCharacter(charId, character); io.emit('character_created', { character });
     } catch {

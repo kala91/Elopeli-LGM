@@ -225,7 +225,7 @@ if (response.includes('<TOOL_CALL>')) {
 }
 ```
 
-### 2. **Character Creator** (`llm/characterCreator.js`)
+### 2. **Character Creator Agent** (`llm/characterCreatorAgent.js`)
 
 **Rooli:** Luo hahmon pelaajan toiveiden mukaan
 
@@ -308,7 +308,7 @@ if (otherChars.length === 0) {
 }
 ```
 
-### 4. **Memory Extractor** (`llm/memoryExtractor.js`)
+### 4. **Memory Extractor Agent** (`llm/memoryExtractorAgent.js`)
 
 **Rooli:** Tunnistaa dramaturgisesti merkittävät hetket recent storysta
 
@@ -374,7 +374,7 @@ const langInstruction = Object.entries(participantLanguages)
 // server.js
 let entriesCount = storyRecent.entries.length;
 if (entriesCount % 5 === 0 || anyPlayerSubmitted) {
-  await memoryExtractor({...});
+  await memoryExtractorAgent({...});
 }
 ```
 
@@ -435,7 +435,7 @@ socket.on('player_tutorial', async ({message, history}) => {
   
   // 2. Jos agentti päätti luoda hahmon → Character Creator
   if (tutorialResponse.shouldCreateCharacter) {
-    const characterData = await characterCreator({
+    const characterData = await characterCreatorAgent({
       gameConfig,
       characterWishes: tutorialResponse.characterWishes,
       existingCharacters: getAllCharacters(),
@@ -478,7 +478,7 @@ socket.on('trigger_scene', async ({playerId, playerSubmit}) => {
   
   // 5. Tarkista extraction trigger
   if (shouldExtract()) {
-    await memoryExtractor({
+    await memoryExtractorAgent({
       gameConfig,
       recentStory,
       characters: getAllCharacters(),

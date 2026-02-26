@@ -1,4 +1,4 @@
-export async function createCharacter(
+export async function createCharacterAgent(
   playerName: string,
   existingCharacters: any[],
   gameConfig: any,
@@ -16,7 +16,7 @@ export async function createCharacter(
   const prompt = `Create character JSON for player ${playerName}.\nSetting: ${gameConfig.setting}\nThemes: ${(gameConfig.themes || []).join(', ')}\nRelationships: ${(gameConfig.availableRelationships || []).join(', ')}${existingCharsContext}${wishesContext}\nLanguage: ${language}. Return ONLY JSON with description, personality[], goals[], relationships[].`;
 
   try {
-    const response = await askLLM(prompt, 'character_generation', playerName, { module: 'CharacterCreator' });
+    const response = await askLLM(prompt, 'character_generation', playerName, { module: 'CharacterCreatorAgent' });
     const match = response.match(/```json\n?([\s\S]*?)\n?```/) || response.match(/{[\s\S]*}/);
     if (!match) throw new Error('No JSON');
     return JSON.parse(match[0].replace(/```json\n?/, '').replace(/\n?```/, ''));
