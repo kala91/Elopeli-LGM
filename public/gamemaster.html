@@ -698,6 +698,23 @@
             }
         });
         
+
+        socket.on('player_joined', (player) => {
+            console.log('👤 Player joined (awaiting character):', player.playerName);
+            showLLMActivity(`${player.playerName} liittyi peliin (hahmoa luodaan)`);
+            setTimeout(hideLLMActivity, 2000);
+        });
+
+        socket.on('character_created', (data) => {
+            const character = data?.character;
+            if (!character) return;
+            console.log('🎭 Character created:', character.name);
+            fetch('/api/characters').then(r => r.json()).then(chars => {
+                updateCharacters(chars);
+            }).catch(err => {
+                console.error('Error reloading characters after creation:', err);
+            });
+        });
         // Kuuntele character_joined eventejä (uusi kognitiivinen muisti-arkkitehtuuri)
         socket.on('character_joined', (character) => {
             console.log('👤 Pelaaja liittyi:', character.name);

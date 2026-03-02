@@ -222,6 +222,13 @@ io.on('connection', socket => {
       if (!languageValidation.valid) return socket.emit('error', { message: languageValidation.error });
       const gameConfig = loadGameConfig();
       if (!gameConfig.setting) return socket.emit('error', { message: ERROR_MESSAGES.GAME_NOT_INITIALIZED });
+
+      socket.emit('join_ack', { success: true, playerName, language });
+      io.emit('player_joined', {
+        playerName,
+        language,
+        joinedAt: new Date().toISOString()
+      });
     } catch {
       socket.emit('error', { message: ERROR_MESSAGES.FAILED_TO_JOIN_GAME });
     }
@@ -259,7 +266,9 @@ io.on('connection', socket => {
       const characterWishes = tutorialHistory?.filter((msg: any) => msg.role === 'player').map((msg: any) => msg.content).join(' | ') || '';
       const generated = await createCharacterAgent(playerName, existingCharacters, gameConfig, language || 'fi', askLLM, characterWishes);
       const character: any = { id: charId, name: playerName, ...generated, status: 'active', memory: { key_moments: [], relationships: {} }, playerMeta: { language: language || 'fi', joinedAt: new Date().toISOString(), sessionCount: 1 } };
-      saveCharacter(charId, character); io.emit('character_created', { character });
+      saveCharacter(charId, character);
+      io.emit('character_created', { character });
+      io.emit('character_joined', character);
     } catch {
       socket.emit('error', { message: ERROR_MESSAGES.CHARACTER_CREATION_FAILED });
     }

@@ -28,7 +28,20 @@ export async function handleTutorial(
     ? '\n\nCONVERSATION HISTORY:\n' + conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n')
     : '';
 
-  const tutorialPrompt = `You are a tutorial assistant for a Digital LARP game.\nGAME SETTING: ${setting}\nTHEMES: ${themes}${existingCharsInfo}${storyInfo}${conversationContext}\nPlayer: ${playerName}\nLatest message: ${playerQuestion}\nWhen player is ready, call tool with <TOOL_CALL>{"tool":"createCharacter","playerWishes":"..."}</TOOL_CALL>.\nRespond ${responseLanguage}.`;
+  const tutorialPrompt = `You are the CHARACTER CREATION assistant for a railroaded Digital LARP game.
+GAME SETTING: ${setting}
+THEMES: ${themes}${existingCharsInfo}${storyInfo}${conversationContext}
+Player: ${playerName}
+Latest message: ${playerQuestion}
+
+Rules:
+- Your job in this mode is ONLY character creation.
+- Ask at most one short open question at a time, only if required details are missing.
+- NEVER use multiple-choice formatting unless player explicitly requests options.
+- As soon as you have enough to create a playable character (name + concept + one motivation), call tool immediately with <TOOL_CALL>{"tool":"createCharacter","playerWishes":"..."}</TOOL_CALL>.
+- After tool call, keep any additional text brief and supportive.
+
+Respond ${responseLanguage}.`;
 
   try {
     const response = await askLLM(tutorialPrompt, 'tutorial', playerName, { module: 'TutorialAgent' });
