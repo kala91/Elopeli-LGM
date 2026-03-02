@@ -1,8 +1,20 @@
-# Digitaalinen LARP-moottori
+# Elopeli-LGM
 
-> AI-ohjattu improvisaatioroolipeli-alusta
+> Tutkiva digitaalisen improvisaatioteatterin/LARPin alusta.
 
-Digitaalinen alusta, joka orkestroi osallistujille dramaturgisesti koherenttia improvisaatio-LARPpia.
+Elopeli-LGM on **Niilo Helanderin säätiön apurahalla toteutettu tutkimusprojekti**, jossa testataan voiko kielimallien avulla rakentaa reaaliaikaisesti käsikirjoitusta tuottavan alustan: tekoäly "käsikirjoittaa" elettävää peliä (railroadattu larp / improvisaatioteatterimetodi).
+
+## Projektin nykytila
+
+Tämä repo on aktiivisessa tutkimusvaiheessa. Tavoite ei ole lukita yhtä oikeaa toteutusta, vaan kokeilla vaihtoehtoisia arkkitehtuureita, kuten:
+
+- onko sisältö etukäteen käsikirjoitettua vai syntyykö se reaaliaikaisesti
+- kuvataanko maailma valmiina tarinoina, lokaatioina, hahmoina vai esineinä
+- säilytetäänkö tieto JSON-rakenteena vai vapaana tekstinä, jota jäsennetään semanttisesti kielimallilla
+- tehdäänkö dramaturgista hahmodynamiikan analyysiä jokaisen promptin yhteydessä
+- kuinka paljon kontekstia/peliohjetta pelaajalle kannattaa antaa (liian vähän vs. liikaa)
+
+Yksi projektin kiinnostava metataso: kielimalliagenttia promptataan koodaamaan alustaa, johon rakennetaan kielimalliagentteja kirjoittamaan toimintaohjeita ihmisagenteille. Kaikilla tasoilla pätee sama semanttisen koodaamisen kysymys: **mikä on riittävä määrä kontekstia**.
 
 ## 🚀 Pika-aloitus
 
@@ -67,15 +79,6 @@ Palvelin käynnistyy portissa 3000:
 - Game Master: http://localhost:3000/gamemaster.html
 - Debug: http://localhost:3000/debug.html
 
-## 📦 package-tiedostot (pidetään Gitissä)
-
-Kyllä: `package.json` ja `package-lock.json` kuuluvat repositorioon.
-
-- `package.json` määrittää sovelluksen riippuvuudet ja skriptit.
-- `package-lock.json` lukitsee tarkat versiot, jotta asennukset ovat toistettavia kaikilla kehittäjillä ja CI:ssä.
-
-Älä lisää näitä `.gitignore`:en. Sen sijaan `node_modules/` pidetään ignoroituna.
-
 ## 📚 Dokumentaatio
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) – arkkitehtuuri ja tietovirta
@@ -83,7 +86,7 @@ Kyllä: `package.json` ja `package-lock.json` kuuluvat repositorioon.
 - [docs/API_REFERENCE.md](docs/API_REFERENCE.md) – Socket.IO + HTTP API
 - [docs/taxonomy.md](docs/taxonomy.md) – dramaturgiset työvälineet
 - [docs/TYPESCRIPT_MIGRATION.md](docs/TYPESCRIPT_MIGRATION.md) – TypeScript-siirtymän tausta
-- [CONTRIBUTING.md](CONTRIBUTING.md) – kontribuointiohjeet
+- [CONTRIBUTING.md](CONTRIBUTING.md) – työskentelyohjeet (ensisijaisesti AI-agenteille)
 
 ## 📁 Projektirakenne
 

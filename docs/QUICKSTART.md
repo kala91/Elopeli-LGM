@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-> Pikaopas Elopeli-LGM digitaaliseen LARP-moottoriin
+> Pikaopas Elopeli-LGM:n tutkimusvaiheessa olevaan digitaaliseen improvisaatioteatteri/LARP-alustaan
 
 ## 📋 Sisällysluettelo
 
@@ -71,7 +71,7 @@ http://localhost:3000/gamemaster.html
 
 ### 3. Käynnistä peli
 
-Paina "Start Game" - pelillemplaatti ladataan ja peli käynnistyy.
+Paina "Start Game" - pelitemplaatti ladataan ja peli käynnistyy.
 
 ### 4. Seuraa pelaajia
 
@@ -100,7 +100,7 @@ npm >= 8.0.0
 ```bash
 # 1. Kloonaa repo
 git clone [repo-url]
-cd LLM-ohjattu
+cd Elopeli-LGM
 
 # 2. Asenna riippuvuudet
 npm install
