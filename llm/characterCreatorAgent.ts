@@ -13,7 +13,7 @@ export async function createCharacterAgent(
     ? `\n\n## PLAYER WISHES\n${characterWishes}`
     : '';
 
-  const prompt = `Create character JSON for player ${playerName}.\nSetting: ${gameConfig.setting}\nThemes: ${(gameConfig.themes || []).join(', ')}\nRelationships: ${(gameConfig.availableRelationships || []).join(', ')}${existingCharsContext}${wishesContext}\nLanguage: ${language}. Return ONLY JSON with description, personality[], goals[], relationships[].`;
+  const prompt = `Create character JSON for player ${playerName}.\nSetting: ${gameConfig.setting}\nThemes: ${(gameConfig.themes || []).join(', ')}\nRelationships: ${(gameConfig.availableRelationships || []).join(', ')}${existingCharsContext}${wishesContext}\nLanguage: ${language}. Return ONLY JSON with description, personality[], goals[], relationships[]. Description must be markdown-formatted with short paragraphs and bullet points (not one text block).`;
 
   try {
     const response = await askLLM(prompt, 'character_generation', playerName, { module: 'CharacterCreatorAgent' });
