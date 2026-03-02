@@ -3,7 +3,7 @@
  */
 import path from 'path';
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const DATA_DIR = path.resolve(process.cwd(), 'data');
 
 export const PATHS = {
     GAME_CONFIG: path.join(DATA_DIR, 'game_config.json'),
