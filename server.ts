@@ -19,7 +19,7 @@ import {
   clearAllCharacters
 } from './utils/dataManager';
 import { validatePlayerName, validateLanguage } from './utils/validators';
-import { askLLM, API_PROVIDER, MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL, OPENROUTER_MODEL } from './llm/apiClient';
+import { askLLM, API_PROVIDER, MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL, OPENROUTER_MODEL, MOCKFILE_MODEL } from './llm/apiClient';
 import { buildActionPrompt } from './llm/promptAgent';
 import { extractMemoriesAgent } from './llm/memoryExtractorAgent';
 import { buildDramaturgyPrompt } from './llm/dramaturgAgent';
@@ -180,7 +180,7 @@ app.get('/api/default-config', (_req, res) => {
       charPromptTemplate: '',
       scenePromptTemplate: '',
       llm: gameConfig.llm || {
-        provider: API_PROVIDER === 'openrouter' ? 'openrouter' : 'ollama',
+        provider: API_PROVIDER === 'openrouter' ? 'openrouter' : API_PROVIDER === 'mockfile' ? 'mockfile' : 'ollama',
         model: MODEL,
         baseUrl: OLLAMA_BASE_URL,
         apiKey: '',
@@ -189,11 +189,52 @@ app.get('/api/default-config', (_req, res) => {
       defaults: {
         ollamaBaseUrl: OLLAMA_BASE_URL,
         ollamaModel: OLLAMA_MODEL,
-        openrouterModel: OPENROUTER_MODEL
+        openrouterModel: OPENROUTER_MODEL,
+        mockfileModel: MOCKFILE_MODEL
       }
     });
   } catch {
     res.status(500).json({ error: 'Virhe ladattaessa oletuskonfiguraatiota' });
+  }
+});
+
+
+app.get('/api/mock-llm/last-prompt', (_req, res) => {
+  try {
+    const content = fs.existsSync(PATHS.MOCK_LLM_INPUT) ? fs.readFileSync(PATHS.MOCK_LLM_INPUT, 'utf8') : '';
+    res.json({ content });
+  } catch {
+    res.status(500).json({ error: 'Failed to load mock prompt' });
+  }
+});
+
+app.get('/api/mock-llm/responses', (_req, res) => {
+  try {
+    const content = fs.existsSync(PATHS.MOCK_LLM_RESPONSES)
+      ? JSON.parse(fs.readFileSync(PATHS.MOCK_LLM_RESPONSES, 'utf8'))
+      : { default: '', byPromptType: {} };
+    res.json(content);
+  } catch {
+    res.status(500).json({ error: 'Failed to load mock responses' });
+  }
+});
+
+app.post('/api/mock-llm/responses', (req, res) => {
+  try {
+    fs.writeFileSync(PATHS.MOCK_LLM_RESPONSES, JSON.stringify(req.body || {}, null, 2), 'utf8');
+    if (fs.existsSync(PATHS.MOCK_LLM_STATE)) fs.unlinkSync(PATHS.MOCK_LLM_STATE);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to save mock responses' });
+  }
+});
+
+app.post('/api/mock-llm/reset-state', (_req, res) => {
+  try {
+    if (fs.existsSync(PATHS.MOCK_LLM_STATE)) fs.unlinkSync(PATHS.MOCK_LLM_STATE);
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to reset mock state' });
   }
 });
 
@@ -245,8 +286,8 @@ io.on('connection', socket => {
         physicalPropsGuidance = templateContent.match(/## Physical Props Guidance\s+([^#]+)/)?.[1]?.trim() || physicalPropsGuidance;
       }
 
-      const provider = config.llm?.provider === 'openrouter' ? 'openrouter' : 'ollama';
-      const defaultLlmModel = provider === 'openrouter' ? OPENROUTER_MODEL : OLLAMA_MODEL;
+      const provider = config.llm?.provider === 'openrouter' ? 'openrouter' : config.llm?.provider === 'mockfile' ? 'mockfile' : 'ollama';
+      const defaultLlmModel = provider === 'openrouter' ? OPENROUTER_MODEL : provider === 'mockfile' ? MOCKFILE_MODEL : OLLAMA_MODEL;
 
       const gameConfig: any = {
         setting: setting || config.setting || '',
@@ -275,6 +316,7 @@ io.on('connection', socket => {
       clearAllCharacters();
       storyEntryCount = 0;
       Object.keys(connectedPlayers).forEach(key => delete connectedPlayers[key]);
+      if (fs.existsSync(PATHS.MOCK_LLM_STATE)) fs.unlinkSync(PATHS.MOCK_LLM_STATE);
       io.emit('sync_state', { gameConfig, story: { maxSize: GAME.STORY_RECENT_MAX_SIZE, entries: [] }, characters: [] });
     } catch {
       socket.emit('error', { message: ERROR_MESSAGES.GAME_INITIALIZATION_FAILED });
@@ -343,7 +385,11 @@ io.on('connection', socket => {
         historyCount: data?.conversationHistory?.length || 0
       });
       const result = await handleTutorial(data.playerName, data.message, loadGameConfig(), getAllCharacterIds().map(loadCharacter).filter(Boolean), loadRecentStory().entries || [], data.language || 'fi', data.conversationHistory || [], askLLM);
-      socket.emit('tutorial_response', { response: result.response, createCharacter: result.toolCall?.tool === 'createCharacter' });
+      socket.emit('tutorial_response', {
+        response: result.response,
+        createCharacter: result.toolCall?.tool === 'createCharacter',
+        playerWishes: typeof result.toolCall?.playerWishes === 'string' ? result.toolCall.playerWishes : ''
+      });
     } catch {
       socket.emit('error', { message: ERROR_MESSAGES.TUTORIAL_FAILED });
     }
@@ -356,12 +402,13 @@ io.on('connection', socket => {
         language: data?.language,
         tutorialHistoryCount: data?.tutorialHistory?.length || 0
       });
-      const { playerName, language, tutorialHistory } = data;
+      const { playerName, language, tutorialHistory, playerWishes } = data;
       const charId = playerName.toLowerCase().replace(/\s+/g, '_');
       if (loadCharacter(charId)) return socket.emit('error', { message: 'Character already exists' });
       const gameConfig = loadGameConfig();
       const existingCharacters = getAllCharacterIds().map(loadCharacter).filter(Boolean);
-      const characterWishes = tutorialHistory?.filter((msg: any) => msg.role === 'player').map((msg: any) => msg.content).join(' | ') || '';
+      const historyWishes = tutorialHistory?.filter((msg: any) => msg.role === 'player').map((msg: any) => msg.content).join(' | ') || '';
+      const characterWishes = (typeof playerWishes === 'string' && playerWishes.trim()) ? playerWishes.trim() : historyWishes;
       const generated = await createCharacterAgent(
         playerName,
         existingCharacters,

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mock LLM Console</title>
+  <style>
+    body { background:#101010; color:#0f0; font-family: monospace; margin:0; padding:20px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    textarea { width:100%; min-height:420px; background:#0a0a0a; color:#7cff7c; border:1px solid #0f0; padding:10px; }
+    button { background:#0f0; color:#000; border:none; padding:10px 14px; font-weight:bold; cursor:pointer; margin-right:8px; }
+    .small { color:#9f9; font-size:12px; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Mock LLM Console (human-in-the-loop)</h1>
+  <p class="small">Tällä sivulla voit syöttää mock-vastaukset samalla tavalla kuin kielimalli vastaisi. Promptit päivittyvät vasempaan ruutuun.</p>
+  <div style="margin-bottom:12px;">
+    <button id="refresh-btn">Päivitä prompt</button>
+    <button id="load-btn">Lataa vastaukset</button>
+    <button id="save-btn">Tallenna vastaukset</button>
+    <button id="reset-btn">Nollaa mock state</button>
+    <span id="status" class="small"></span>
+  </div>
+  <div class="grid">
+    <div>
+      <h3>Viimeisin prompti (read-only)</h3>
+      <textarea id="prompt-view" readonly></textarea>
+    </div>
+    <div>
+      <h3>Mock vastaukset (JSON)</h3>
+      <textarea id="responses-view" placeholder='{"default":"...","byPromptType":{"tutorial":"..."}}'></textarea>
+    </div>
+  </div>
+
+  <script>
+    const promptView = document.getElementById('prompt-view');
+    const responsesView = document.getElementById('responses-view');
+    const status = document.getElementById('status');
+
+    async function refreshPrompt() {
+      const res = await fetch('/api/mock-llm/last-prompt');
+      const data = await res.json();
+      promptView.value = data.content || '';
+    }
+
+    async function loadResponses() {
+      const res = await fetch('/api/mock-llm/responses');
+      const data = await res.json();
+      responsesView.value = JSON.stringify(data, null, 2);
+    }
+
+    async function saveResponses() {
+      try {
+        const parsed = JSON.parse(responsesView.value || '{}');
+        const res = await fetch('/api/mock-llm/responses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsed)
+        });
+        if (!res.ok) throw new Error('save failed');
+        status.textContent = '✅ Vastaukset tallennettu';
+      } catch {
+        status.textContent = '❌ JSON virhe tai tallennus epäonnistui';
+      }
+    }
+
+    async function resetState() {
+      await fetch('/api/mock-llm/reset-state', { method: 'POST' });
+      status.textContent = '♻️ Mock state nollattu';
+    }
+
+    document.getElementById('refresh-btn').onclick = refreshPrompt;
+    document.getElementById('load-btn').onclick = loadResponses;
+    document.getElementById('save-btn').onclick = saveResponses;
+    document.getElementById('reset-btn').onclick = resetState;
+
+    loadResponses();
+    refreshPrompt();
+    setInterval(refreshPrompt, 1500);
+  </script>
+</body>
+</html>

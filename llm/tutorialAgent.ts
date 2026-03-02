@@ -1,3 +1,12 @@
+function extractFirstJsonObject(raw: string): string | null {
+  const fenced = raw.match(/```json\s*([\s\S]*?)\s*```/i);
+  const candidate = (fenced?.[1] || raw).trim();
+  if (candidate.startsWith('{') && candidate.endsWith('}')) return candidate;
+
+  const objectMatch = candidate.match(/\{[\s\S]*\}/);
+  return objectMatch ? objectMatch[0] : null;
+}
+
 export async function handleTutorial(
   playerName: string,
   playerQuestion: string,
@@ -10,74 +19,63 @@ export async function handleTutorial(
 ): Promise<{ response: string | null; toolCall: Record<string, unknown> | null }> {
   const setting = gameConfig.setting || 'Peli on juuri alkanut';
   const themes = gameConfig.themes?.join(', ') || 'Ei teemoja';
-  let existingCharsInfo = '';
-  if (existingCharacters?.length > 0) {
-    existingCharsInfo = '\n\nOLEMASSA OLEVAT HAHMOT:\n' + existingCharacters.map(c => `- ${c.name}: ${c.description}`).join('\n');
-  } else {
-    existingCharsInfo = '\n\nEi vielä hahmoja pelissä. Olet ensimmäinen!';
-  }
+  const existingCharsInfo = existingCharacters?.length > 0
+    ? '\n\nOLEMASSA OLEVAT HAHMOT:\n' + existingCharacters.map(c => `- ${c.name}: ${c.description}`).join('\n')
+    : '\n\nEi vielä hahmoja pelissä. Olet ensimmäinen!';
 
-  let storyInfo = '';
-  if (recentStory?.length > 0) {
-    const recentEvents = recentStory.slice(-5).map(e => `[${e.timestamp}] ${e.targetChar || 'Unknown'}: ${e.instruction}`).join('\n');
-    storyInfo = `\n\nVIIMEISIMMÄT TAPAHTUMAT:\n${recentEvents}`;
-  }
+  const storyInfo = recentStory?.length > 0
+    ? `\n\nVIIMEISIMMÄT TAPAHTUMAT:\n${recentStory.slice(-5).map(e => `[${e.timestamp}] ${e.targetChar || 'Unknown'}: ${e.instruction}`).join('\n')}`
+    : '';
 
   const responseLanguage = language === 'fi' ? 'in Finnish (suomeksi)' : language === 'sv' ? 'in Swedish (på svenska)' : 'in English';
   const conversationContext = conversationHistory.length > 0
     ? '\n\nCONVERSATION HISTORY:\n' + conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n')
     : '';
 
-  const tutorialPrompt = `You are the TUTORIAL assistant for a railroaded Digital LARP game.
+  const tutorialPrompt = `You are the tutorial assistant for Digital LARP character onboarding.
 GAME SETTING: ${setting}
 THEMES: ${themes}${existingCharsInfo}${storyInfo}${conversationContext}
 Player: ${playerName}
 Latest message: ${playerQuestion}
 
+You must ALWAYS return ONLY valid JSON using this exact schema:
+{
+  "message": "string",
+  "continueToCharacterCreation": true,
+  "playerWishes": "string"
+}
+
 Rules:
-- Your job in this mode is ONLY character creation.
-- Ask at most one short open question at a time, only if required details are missing.
-- NEVER use multiple-choice formatting unless player explicitly requests options.
-- As soon as you have enough to create a playable character (name + concept + one motivation), output EXACTLY this tag:
-  <START_CHARACTER_CREATION>{"tool":"createCharacter","playerWishes":"..."}</START_CHARACTER_CREATION>
-- Never output a raw JSON object without the START_CHARACTER_CREATION tag.
-- After tool call, keep any additional text brief and supportive.
+- continueToCharacterCreation must be true ONLY when enough info exists to generate a playable character.
+- If continueToCharacterCreation is false, playerWishes must be an empty string.
+- If continueToCharacterCreation is true, playerWishes must summarize player wishes concretely for character generator.
+- message is always player-facing tutorial text.
+- Do not output markdown, tags, or any extra text outside JSON.
 
 Respond ${responseLanguage}.`;
 
   try {
     const response = await askLLM(tutorialPrompt, 'tutorial', playerName, { module: 'TutorialAgent' });
-    const toolCallMatch = response.match(/<(?:START_CHARACTER_CREATION|TOOL_CALL)>\s*(\{[\s\S]*?\})\s*<\/(?:START_CHARACTER_CREATION|TOOL_CALL)>/s);
-    if (toolCallMatch) {
-      try {
-        const toolCall = JSON.parse(toolCallMatch[1]);
-        const textResponse = response.replace(/<(?:START_CHARACTER_CREATION|TOOL_CALL)>[\s\S]*<\/(?:START_CHARACTER_CREATION|TOOL_CALL)>/, '').trim();
-        return { response: textResponse || null, toolCall };
-      } catch {
-        return { response: response.trim(), toolCall: null };
-      }
-    }
+    const jsonRaw = extractFirstJsonObject(response);
+    if (!jsonRaw) throw new Error('Tutorial JSON missing');
 
-    // Fallback: if model emits only JSON tool call without wrapper, still accept it.
-    const jsonOnlyToolCall = response.trim().match(/^\{[\s\S]*\}$/);
-    if (jsonOnlyToolCall) {
-      try {
-        const parsed = JSON.parse(jsonOnlyToolCall[0]);
-        if (parsed?.tool === 'createCharacter') {
-          return { response: null, toolCall: parsed };
-        }
-      } catch {
-        // ignore and continue as plain text
-      }
-    }
+    const parsed = JSON.parse(jsonRaw);
+    const message = typeof parsed.message === 'string' ? parsed.message.trim() : '';
+    const continueToCharacterCreation = parsed.continueToCharacterCreation === true;
+    const playerWishes = continueToCharacterCreation && typeof parsed.playerWishes === 'string'
+      ? parsed.playerWishes.trim()
+      : '';
 
-    return { response: response.trim(), toolCall: null };
-  } catch {
-    const fallbacks: Record<string, string> = {
-      fi: `Tervetuloa peliin, ${playerName}! Tämä on improvisaatio-LARP-peli.`,
-      en: `Welcome to the game, ${playerName}! This is an improvisation LARP game.`,
-      sv: `Välkommen till spelet, ${playerName}! Detta är ett improvisations-LARP-spel.`
+    return {
+      response: message || null,
+      toolCall: continueToCharacterCreation ? { tool: 'createCharacter', playerWishes } : null
     };
-    return { response: fallbacks[language] || fallbacks.fi, toolCall: null };
+  } catch {
+    const fallbackMessage: Record<string, string> = {
+      fi: `Tervetuloa peliin, ${playerName}! Kerro yksi lause hahmostasi ja miksi hän on tässä tilanteessa.`,
+      en: `Welcome to the game, ${playerName}! Give one sentence about your character and their motivation.`,
+      sv: `Välkommen till spelet, ${playerName}! Beskriv din roll och motivation i en mening.`
+    };
+    return { response: fallbackMessage[language] || fallbackMessage.fi, toolCall: null };
   }
 }

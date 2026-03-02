@@ -34,6 +34,7 @@
                 <select id="llm-provider-select" class="setup-input" onchange="onLLMProviderChange()">
                     <option value="ollama">Ollama</option>
                     <option value="openrouter">OpenRouter</option>
+                    <option value="mockfile">MockFile (testisimulaattori)</option>
                 </select>
 
                 <label>Malli</label>
@@ -213,7 +214,8 @@
         const llmDefaults = {
             ollamaBaseUrl: 'http://localhost:11434',
             ollamaModel: 'ministral-3:latest',
-            openrouterModel: 'google/gemini-2.0-flash-exp:free'
+            openrouterModel: 'google/gemini-2.0-flash-exp:free',
+            mockfileModel: 'mockfile-v1'
         };
         let totalConnectedPlayers = 0;
 
@@ -226,13 +228,17 @@
             if (provider === 'openrouter') {
                 ollamaGroup.style.display = 'none';
                 openrouterGroup.style.display = 'block';
-                if (!modelInput.value.trim() || modelInput.value === llmDefaults.ollamaModel) {
+                if (!modelInput.value.trim() || modelInput.value === llmDefaults.ollamaModel || modelInput.value === llmDefaults.mockfileModel) {
                     modelInput.value = llmDefaults.openrouterModel;
                 }
+            } else if (provider === 'mockfile') {
+                ollamaGroup.style.display = 'none';
+                openrouterGroup.style.display = 'none';
+                modelInput.value = llmDefaults.mockfileModel;
             } else {
                 ollamaGroup.style.display = 'block';
                 openrouterGroup.style.display = 'none';
-                if (!modelInput.value.trim() || modelInput.value === llmDefaults.openrouterModel) {
+                if (!modelInput.value.trim() || modelInput.value === llmDefaults.openrouterModel || modelInput.value === llmDefaults.mockfileModel) {
                     modelInput.value = llmDefaults.ollamaModel;
                 }
                 const urlInput = document.getElementById('ollama-base-url');
@@ -356,6 +362,7 @@
                 llmDefaults.ollamaBaseUrl = config.defaults?.ollamaBaseUrl || llmDefaults.ollamaBaseUrl;
                 llmDefaults.ollamaModel = config.defaults?.ollamaModel || llmDefaults.ollamaModel;
                 llmDefaults.openrouterModel = config.defaults?.openrouterModel || llmDefaults.openrouterModel;
+                llmDefaults.mockfileModel = config.defaults?.mockfileModel || llmDefaults.mockfileModel;
 
                 const llm = config.llm || {};
                 document.getElementById('llm-provider-select').value = llm.provider || 'ollama';
@@ -587,7 +594,7 @@
             // Lähetä config serverille
             socket.emit('gm_initialize', gameConfig);
 
-            document.getElementById('llm-provider').textContent = selectedProvider === 'openrouter' ? 'OpenRouter' : 'Ollama';
+            document.getElementById('llm-provider').textContent = selectedProvider === 'openrouter' ? 'OpenRouter' : selectedProvider === 'mockfile' ? 'MockFile' : 'Ollama';
             document.getElementById('llm-model').textContent = llmModel;
 
             // Näytä master screen

@@ -40,6 +40,30 @@ OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=gemma2
 ```
 
+
+### MockFile testisimulaattori (MVP-flow testaukseen)
+
+Voit valita Game Master UI:ssa provideriksi **MockFile (testisimulaattori)**.
+
+- Engine kirjoittaa viimeisimmän promptin tiedostoon: `data/mock_llm_last_prompt.txt`
+- Engine lukee vastauksen tiedostosta: `data/mock_llm_responses.json`
+- Prompt type -kohtaisia vastauksia voi antaa myös listana (array), jolloin vastaukset kuluvat järjestyksessä per prompt type.
+- Human-in-the-loop UI: `http://localhost:3000/mockllm.html`
+
+Esimerkkiformaatti:
+
+```json
+{
+  "default": "{\"message\":\"fallback\",\"continueToCharacterCreation\":false,\"playerWishes\":\"\"}",
+  "byPromptType": {
+    "tutorial": "{\"message\":\"Luodaan hahmo.\",\"continueToCharacterCreation\":true,\"playerWishes\":\"Rooli: mekaanikko\"}",
+    "character_generation": "{\"description\":\"...\",\"personality\":[],\"goals\":[],\"relationships\":[]}"
+  }
+}
+```
+
+Tämä mahdollistaa semanttisen datavirran testauksen ilman ulkoista LLM-palvelua.
+
 ### 3) Käynnistä palvelin
 
 ```bash
