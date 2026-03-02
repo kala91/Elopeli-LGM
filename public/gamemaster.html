@@ -562,7 +562,9 @@
 
         function startGame() {
             const templateId = document.getElementById('template-selector').value;
-            const customSetting = document.getElementById('world-setting').value.trim();
+            const rawSetting = document.getElementById('world-setting').value.trim();
+            const placeholderValues = ['ladataan...', 'template valittu'];
+            const customSetting = placeholderValues.includes(rawSetting.toLowerCase()) ? '' : rawSetting;
             
             // Jos ei ole valittu templateä eikä kirjoitettu settingiä
             if (!templateId && !customSetting) {

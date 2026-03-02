@@ -40,10 +40,20 @@ const connectedPlayers: Record<string, { playerName: string; language: string; j
 
 function extractTemplateSection(markdown: string, heading: string): string {
   const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const sectionRegex = new RegExp(`^##\\s+${escapedHeading}\\s*$([\\s\\S]*?)(?=^##\\s+|\\Z)`, 'im');
-  const match = markdown.match(sectionRegex);
-  return match?.[1]?.trim() || '';
+  const headingRegex = new RegExp(`^##\\s+${escapedHeading}\\s*$`, 'm');
+  const headingMatch = headingRegex.exec(markdown);
+  if (!headingMatch || headingMatch.index === undefined) return '';
+
+  const startIndex = headingMatch.index + headingMatch[0].length;
+  const remaining = markdown.slice(startIndex);
+  const nextHeadingMatch = /^##\s+/m.exec(remaining);
+  const section = nextHeadingMatch
+    ? remaining.slice(0, nextHeadingMatch.index)
+    : remaining;
+
+  return section.trim();
 }
+
 
 app.use(express.static('public'));
 app.use(express.json());
@@ -287,7 +297,9 @@ io.on('connection', socket => {
 
   socket.on('gm_initialize', async (config: any) => {
     try {
-      let setting = config.setting || '';
+      const incomingSetting = typeof config.setting === 'string' ? config.setting.trim() : '';
+      const isPlaceholderSetting = ['ladataan...', 'template valittu'].includes(incomingSetting.toLowerCase());
+      let setting = isPlaceholderSetting ? '' : incomingSetting;
       let availableRelationships = [...GAME.DEFAULT_RELATIONSHIPS];
       let themes: string[] = [];
       let physicalPropsGuidance = '';
