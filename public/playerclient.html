@@ -167,7 +167,9 @@
             
             // Piilota login, näytä game
             document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('game-screen').style.display = 'block';
+            const gameScreen = document.getElementById('game-screen');
+            gameScreen.style.display = 'flex';
+            gameScreen.classList.add('visible');
             document.getElementById('char-name').innerText = name;
             
             // Aloita tutorial mode
