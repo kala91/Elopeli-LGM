@@ -266,6 +266,18 @@ io.on('connection', socket => {
     console.log(`📡 socket:${socket.id} ${eventName}#${eventCounters[eventName]}`, context);
   }
 
+  function emitPlayerFlowPhase(
+    targetSocket: any,
+    phase: 'tutorial' | 'character_creation' | 'game_running' | 'post_game',
+    message: string
+  ): void {
+    targetSocket.emit('player_flow_phase', {
+      phase,
+      message,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   socket.on('gm_initialize', async (config: any) => {
     try {
       let setting = config.setting || '';
@@ -338,6 +350,7 @@ io.on('connection', socket => {
       connectedPlayers[socket.id] = { playerName, language, joinedAt, hasCharacter: false };
 
       socket.emit('join_ack', { success: true, playerName, language });
+      emitPlayerFlowPhase(socket, 'tutorial', 'Tutoriaali käynnissä');
       io.emit('player_joined', {
         playerName,
         language,
@@ -403,6 +416,7 @@ io.on('connection', socket => {
         tutorialHistoryCount: data?.tutorialHistory?.length || 0
       });
       const { playerName, language, tutorialHistory, playerWishes } = data;
+      emitPlayerFlowPhase(socket, 'character_creation', 'Hahmon luonti käynnissä');
       const charId = playerName.toLowerCase().replace(/\s+/g, '_');
       if (loadCharacter(charId)) return socket.emit('error', { message: 'Character already exists' });
       const gameConfig = loadGameConfig();
@@ -421,6 +435,7 @@ io.on('connection', socket => {
       const character: any = { id: charId, name: playerName, ...generated, status: 'active', memory: { key_moments: [], relationships: {} }, playerMeta: { language: language || 'fi', joinedAt: new Date().toISOString(), sessionCount: 1 } };
       saveCharacter(charId, character);
       socket.emit('character_created', { character });
+      emitPlayerFlowPhase(socket, 'game_running', 'Peli käynnissä');
       if (connectedPlayers[socket.id]) {
         connectedPlayers[socket.id].hasCharacter = true;
       }
@@ -442,7 +457,7 @@ io.on('connection', socket => {
       const character = loadCharacter(data.charId);
       if (!character) return socket.emit('error', { message: ERROR_MESSAGES.CHARACTER_NOT_FOUND });
       const newEntry = { id: Date.now(), timestamp: new Date().toLocaleTimeString('fi-FI'), targetChar: character.name, targetId: character.id, instruction: `[PELAAJAN TOIMINTA] ${data.action}`, playerJoined: false, playerSubmitted: true };
-      appendToRecentStory(newEntry); storyEntryCount++; io.emit('story_update', newEntry); setImmediate(() => processMemoryExtraction(newEntry)); socket.emit('action_received', { success: true });
+      appendToRecentStory(newEntry); storyEntryCount++; io.emit('story_update', newEntry); socket.emit('action_received', { success: true });
     } catch {
       socket.emit('error', { message: ERROR_MESSAGES.FAILED_TO_SUBMIT_ACTION });
     }

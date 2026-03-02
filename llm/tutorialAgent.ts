@@ -19,6 +19,16 @@ export async function handleTutorial(
 ): Promise<{ response: string | null; toolCall: Record<string, unknown> | null }> {
   const setting = gameConfig.setting || 'Peli on juuri alkanut';
   const themes = gameConfig.themes?.join(', ') || 'Ei teemoja';
+  const phase = gameConfig.currentPhase?.name || 'Alku';
+  const relationships = (gameConfig.availableRelationships || []).join(', ') || 'Ei määritelty';
+  const propsGuidance = gameConfig.physicalPropsGuidance || 'Ei erillistä ohjetta';
+  const gameConfigSnapshot = JSON.stringify({
+    setting: gameConfig.setting || '',
+    currentPhase: gameConfig.currentPhase || null,
+    themes: gameConfig.themes || [],
+    availableRelationships: gameConfig.availableRelationships || [],
+    physicalPropsGuidance: gameConfig.physicalPropsGuidance || ''
+  }, null, 2);
   const existingCharsInfo = existingCharacters?.length > 0
     ? '\n\nOLEMASSA OLEVAT HAHMOT:\n' + existingCharacters.map(c => `- ${c.name}: ${c.description}`).join('\n')
     : '\n\nEi vielä hahmoja pelissä. Olet ensimmäinen!';
@@ -33,8 +43,13 @@ export async function handleTutorial(
     : '';
 
   const tutorialPrompt = `You are the tutorial assistant for Digital LARP character onboarding.
-GAME SETTING: ${setting}
-THEMES: ${themes}${existingCharsInfo}${storyInfo}${conversationContext}
+GAME SETTING (FULL): ${setting}
+PHASE: ${phase}
+THEMES: ${themes}
+AVAILABLE RELATIONSHIPS: ${relationships}
+PHYSICAL PROPS GUIDANCE: ${propsGuidance}
+GAME CONFIG JSON SNAPSHOT:
+${gameConfigSnapshot}${existingCharsInfo}${storyInfo}${conversationContext}
 Player: ${playerName}
 Latest message: ${playerQuestion}
 
