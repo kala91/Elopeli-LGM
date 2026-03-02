@@ -655,7 +655,7 @@
                             ${momentsCount} muistoa | ${relsCount} suhdetta
                         </div>
                         <div id="char-details-${idx}" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #333; font-size: 0.85rem;">
-                            ${char.description ? `<p style="color: #aaa; margin: 5px 0;">${char.description.substring(0, 150)}...</p>` : ''}
+                            ${char.description ? `<p style="color: #aaa; margin: 5px 0; white-space: pre-wrap;">${char.description}</p>` : ''}
                             ${char.memory?.key_moments && char.memory.key_moments.length > 0 ? `
                                 <div style="margin-top: 8px;">
                                     <strong style="color: #6bff6b;">Viimeisimmät muistot:</strong>

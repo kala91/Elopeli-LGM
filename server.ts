@@ -157,6 +157,18 @@ app.get('/api/characters/:id', (req, res) => {
 });
 
 io.on('connection', socket => {
+  const eventCounters: Record<string, number> = {
+    trigger_scene: 0,
+    player_action: 0,
+    player_tutorial: 0,
+    create_character: 0
+  };
+
+  function bumpEventCounter(eventName: keyof typeof eventCounters, context: Record<string, unknown> = {}): void {
+    eventCounters[eventName] += 1;
+    console.log(`📡 socket:${socket.id} ${eventName}#${eventCounters[eventName]}`, context);
+  }
+
   socket.on('gm_initialize', async (config: any) => {
     try {
       let setting = config.setting || '';
@@ -236,9 +248,19 @@ io.on('connection', socket => {
 
   socket.on('trigger_scene', async (data: any) => {
     try {
+      bumpEventCounter('trigger_scene', { charId: data?.charId, hasPlayerInput: Boolean(data?.playerInput) });
       const character = loadCharacter(data.charId);
       if (!character) return socket.emit('error', { message: ERROR_MESSAGES.CHARACTER_NOT_FOUND });
-      const instruction = await buildActionPrompt(character, getAllCharacterIds().map(loadCharacter).filter(Boolean), loadGameConfig(), loadRecentStory().entries, askLLM);
+      const allCharacters = getAllCharacterIds().map(loadCharacter).filter(Boolean);
+      const recentEntries = loadRecentStory().entries;
+      console.log('🧩 trigger_scene context', {
+        targetCharId: character.id,
+        targetCharName: character.name,
+        totalCharacters: allCharacters.length,
+        recentEntriesCount: recentEntries.length,
+        recentEntriesForPrompt: Math.min(recentEntries.length, 10)
+      });
+      const instruction = await buildActionPrompt(character, allCharacters, loadGameConfig(), recentEntries, askLLM);
       const newEntry: any = { id: Date.now(), timestamp: new Date().toLocaleTimeString('fi-FI'), targetChar: character.name, targetId: character.id, instruction, playerJoined: false, playerSubmitted: false };
       appendToRecentStory(newEntry); storyEntryCount++; io.emit('story_update', newEntry);
       setImmediate(() => processMemoryExtraction(newEntry));
@@ -249,6 +271,12 @@ io.on('connection', socket => {
 
   socket.on('player_tutorial', async (data: any) => {
     try {
+      bumpEventCounter('player_tutorial', {
+        playerName: data?.playerName,
+        language: data?.language,
+        messageLength: (data?.message || '').length,
+        historyCount: data?.conversationHistory?.length || 0
+      });
       const result = await handleTutorial(data.playerName, data.message, loadGameConfig(), getAllCharacterIds().map(loadCharacter).filter(Boolean), loadRecentStory().entries || [], data.language || 'fi', data.conversationHistory || [], askLLM);
       socket.emit('tutorial_response', { response: result.response, createCharacter: result.toolCall?.tool === 'createCharacter' });
     } catch {
@@ -258,6 +286,11 @@ io.on('connection', socket => {
 
   socket.on('create_character', async (data: any) => {
     try {
+      bumpEventCounter('create_character', {
+        playerName: data?.playerName,
+        language: data?.language,
+        tutorialHistoryCount: data?.tutorialHistory?.length || 0
+      });
       const { playerName, language, tutorialHistory } = data;
       const charId = playerName.toLowerCase().replace(/\s+/g, '_');
       if (loadCharacter(charId)) return socket.emit('error', { message: 'Character already exists' });
@@ -267,6 +300,7 @@ io.on('connection', socket => {
       const generated = await createCharacterAgent(playerName, existingCharacters, gameConfig, language || 'fi', askLLM, characterWishes);
       const character: any = { id: charId, name: playerName, ...generated, status: 'active', memory: { key_moments: [], relationships: {} }, playerMeta: { language: language || 'fi', joinedAt: new Date().toISOString(), sessionCount: 1 } };
       saveCharacter(charId, character);
+      socket.emit('character_created', { character });
       io.emit('character_created', { character });
       io.emit('character_joined', character);
     } catch {
@@ -276,6 +310,7 @@ io.on('connection', socket => {
 
   socket.on('player_action', async (data: any) => {
     try {
+      bumpEventCounter('player_action', { charId: data?.charId, actionLength: (data?.action || '').length });
       const character = loadCharacter(data.charId);
       if (!character) return socket.emit('error', { message: ERROR_MESSAGES.CHARACTER_NOT_FOUND });
       const newEntry = { id: Date.now(), timestamp: new Date().toLocaleTimeString('fi-FI'), targetChar: character.name, targetId: character.id, instruction: `[PELAAJAN TOIMINTA] ${data.action}`, playerJoined: false, playerSubmitted: true };
@@ -288,8 +323,74 @@ io.on('connection', socket => {
   socket.on('update_setting', (data: any) => {
     const gameConfig = loadGameConfig(); gameConfig.setting = data.setting; saveGameConfig(gameConfig); io.emit('game_config_updated', gameConfig);
   });
+  socket.on('update_player_meta', (data: any) => {
+    try {
+      const character = loadCharacter(data.charId);
+      if (!character) return socket.emit('error', { message: ERROR_MESSAGES.CHARACTER_NOT_FOUND });
+      character.playerMeta = { ...(character.playerMeta || {}), ...(data.meta || {}) };
+      saveCharacter(data.charId, character as any);
+      socket.emit('meta_updated', { charId: data.charId, meta: character.playerMeta });
+      io.emit('character_updated', { charId: data.charId, character });
+    } catch {
+      socket.emit('error', { message: 'Failed to update player metadata' });
+    }
+  });
+  socket.on('update_game_timer', (data: any) => {
+    try {
+      const gameConfig = loadGameConfig();
+      const mode = data?.timer?.mode === 'timed' ? 'timed' : 'infinite';
+      const totalMinutesRaw = Number(data?.timer?.totalMinutes);
+      const totalMinutes = Number.isFinite(totalMinutesRaw) && totalMinutesRaw > 0 ? totalMinutesRaw : null;
+      gameConfig.gameTimer = {
+        mode,
+        totalMinutes,
+        startTime: mode === 'timed' ? new Date().toISOString() : null,
+        endTime: mode === 'timed' && totalMinutes ? new Date(Date.now() + totalMinutes * 60000).toISOString() : null
+      };
+      saveGameConfig(gameConfig);
+      io.emit('timer_updated', gameConfig.gameTimer);
+      io.emit('game_config_updated', gameConfig);
+    } catch {
+      socket.emit('error', { message: 'Failed to update timer' });
+    }
+  });
   socket.on('update_game_phase', (data: any) => {
-    const gameConfig = loadGameConfig(); gameConfig.currentPhase = { name: data.phase, description: data.description || '', lastUpdate: new Date().toISOString() }; saveGameConfig(gameConfig); io.emit('game_config_updated', gameConfig);
+    const phaseName = (data?.phaseName || data?.phase || '').trim();
+    if (!phaseName) return socket.emit('error', { message: 'Phase name is required' });
+    const gameConfig = loadGameConfig();
+    gameConfig.currentPhase = { name: phaseName, description: data.description || gameConfig.currentPhase?.description || '', lastUpdate: new Date().toISOString() };
+    saveGameConfig(gameConfig);
+    io.emit('phase_updated', { phase: phaseName, description: gameConfig.currentPhase.description });
+    io.emit('game_config_updated', gameConfig);
+  });
+  socket.on('toggle_auto_phase_check', (data: any) => {
+    try {
+      const gameConfig = loadGameConfig();
+      gameConfig.autoPhaseCheck = {
+        enabled: Boolean(data?.enabled),
+        intervalMinutes: Number(data?.intervalMinutes) || 15,
+        lastCheck: gameConfig.autoPhaseCheck?.lastCheck || null
+      };
+      saveGameConfig(gameConfig);
+      io.emit('game_config_updated', gameConfig);
+    } catch {
+      socket.emit('error', { message: 'Failed to update auto phase check' });
+    }
+  });
+  socket.on('gm_notes', (data: any) => {
+    try {
+      const content = (data?.notes || '').trim();
+      if (!content) return;
+      const gameConfig = loadGameConfig();
+      const gmNotes = Array.isArray(gameConfig.gmNotes) ? gameConfig.gmNotes : [];
+      gmNotes.push({ content, timestamp: data?.timestamp || new Date().toISOString() });
+      if (gmNotes.length > 200) gmNotes.splice(0, gmNotes.length - 200);
+      gameConfig.gmNotes = gmNotes;
+      saveGameConfig(gameConfig);
+      io.emit('game_config_updated', gameConfig);
+    } catch {
+      socket.emit('error', { message: 'Failed to save GM notes' });
+    }
   });
   socket.on('analyze_game_state', async () => {
     try {
