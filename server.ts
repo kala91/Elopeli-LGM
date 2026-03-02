@@ -85,6 +85,60 @@ async function processMemoryExtraction(entry: any): Promise<void> {
   }
 }
 
+
+
+function normalizeId(value: string): string {
+  return (value || '').toLowerCase().trim().replace(/\s+/g, '_');
+}
+
+function resolveCharacterByIdOrName(charIdOrName: string, allCharacters: any[]): any | null {
+  const normalized = normalizeId(charIdOrName);
+  return allCharacters.find(c => c.id === normalized || normalizeId(c.name) === normalized) || null;
+}
+
+function applySceneCharacterUpdates(characterUpdates: any[], allCharacters: any[]): void {
+  if (!Array.isArray(characterUpdates) || characterUpdates.length === 0) return;
+
+  for (const update of characterUpdates) {
+    const target = resolveCharacterByIdOrName(update?.charIdOrName || '', allCharacters);
+    if (!target) continue;
+
+    const character = loadCharacter(target.id);
+    if (!character) continue;
+
+    character.memory = character.memory || {};
+    character.memory.key_moments = character.memory.key_moments || [];
+    character.memory.relationships = character.memory.relationships || {};
+
+    if (Array.isArray(update.keyMoments)) {
+      for (const moment of update.keyMoments) {
+        if (typeof moment !== 'string' || !moment.trim()) continue;
+        character.memory.key_moments.push({
+          content: moment.trim(),
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    if (Array.isArray(update.relationshipChanges)) {
+      for (const rel of update.relationshipChanges) {
+        const relTarget = resolveCharacterByIdOrName(rel?.targetCharIdOrName || '', allCharacters);
+        if (!relTarget) continue;
+        const intensityRaw = Number(rel.intensity);
+        const intensity = Number.isFinite(intensityRaw) ? Math.max(1, Math.min(5, Math.round(intensityRaw))) : 3;
+
+        character.memory.relationships[relTarget.id] = {
+          value: String(rel.value || 'alliance'),
+          intensity,
+          notes: String(rel.notes || '')
+        };
+      }
+    }
+
+    saveCharacter(target.id, character);
+    io.emit('character_updated', { charId: target.id, character });
+  }
+}
 app.get('/api/debug-prompts', (_req, res) => {
   try { res.json(loadDebugPrompts()); } 
   catch { res.status(500).json({ error: ERROR_MESSAGES.ERROR_LOADING_DEBUG_DATA }); }
@@ -260,9 +314,10 @@ io.on('connection', socket => {
         recentEntriesCount: recentEntries.length,
         recentEntriesForPrompt: Math.min(recentEntries.length, 10)
       });
-      const instruction = await buildActionPrompt(character, allCharacters, loadGameConfig(), recentEntries, askLLM);
-      const newEntry: any = { id: Date.now(), timestamp: new Date().toLocaleTimeString('fi-FI'), targetChar: character.name, targetId: character.id, instruction, playerJoined: false, playerSubmitted: false };
+      const sceneResult = await buildActionPrompt(character, allCharacters, loadGameConfig(), recentEntries, askLLM);
+      const newEntry: any = { id: Date.now(), timestamp: new Date().toLocaleTimeString('fi-FI'), targetChar: character.name, targetId: character.id, instruction: sceneResult.instruction, playerJoined: false, playerSubmitted: false };
       appendToRecentStory(newEntry); storyEntryCount++; io.emit('story_update', newEntry);
+      applySceneCharacterUpdates(sceneResult.characterUpdates || [], allCharacters);
       setImmediate(() => processMemoryExtraction(newEntry));
     } catch {
       socket.emit('error', { message: ERROR_MESSAGES.FAILED_TO_GENERATE_PROMPT });
