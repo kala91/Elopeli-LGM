@@ -162,30 +162,10 @@
             // Päivitä kielivalinta game screenin asetuksiin
             document.getElementById('player-language').value = language;
             
-            // Lähetä serverille
+            startLoader('LIITYTÄÄN...');
+
+            // Lähetä serverille (UI avataan vasta join_ack:ssa)
             socket.emit('join_game', { playerName: name, language: language });
-            
-            // Piilota login, näytä game
-            document.getElementById('login-screen').style.display = 'none';
-            const gameScreen = document.getElementById('game-screen');
-            gameScreen.style.display = 'flex';
-            gameScreen.classList.add('visible');
-            document.getElementById('char-name').innerText = name;
-            
-            // Aloita tutorial mode
-            inTutorial = true;
-            document.getElementById('character-info').innerHTML = '<p style="color: #888; font-style: italic;">Odottaa hahmon luontia...</p>';
-            
-            // Generoi tervetuloviesti LLM:llä pelaajan kielellä
-            setTimeout(() => {
-                startLoader('LOADING...');
-                socket.emit('player_tutorial', {
-                    playerName: name,
-                    language: language,
-                    message: '(FIRST MESSAGE - Generate welcome message)',
-                    conversationHistory: [] // Tyhjä historia = ensimmäinen viesti
-                });
-            }, 500);
         }
 
         // 2. AND THEN - Käsittelee sekä pelaajan inputin että pyytää uuden ohjeen
@@ -348,6 +328,37 @@
                     tutorialHistory: tutorialHistory
                 });
             }
+        });
+
+        // Join acknowledged -> vasta nyt siirrytään game-screeniin
+        socket.on('join_ack', (data) => {
+            stopLoader();
+            if (!data?.success) return;
+
+            document.getElementById('login-screen').style.display = 'none';
+            const gameScreen = document.getElementById('game-screen');
+            gameScreen.style.display = 'flex';
+            gameScreen.classList.add('visible');
+            document.getElementById('char-name').innerText = playerName;
+
+            inTutorial = true;
+            document.getElementById('character-info').innerHTML = '<p style="color: #888; font-style: italic;">Odottaa hahmon luontia...</p>';
+
+            setTimeout(() => {
+                startLoader('LOADING...');
+                socket.emit('player_tutorial', {
+                    playerName: playerName,
+                    language: playerLanguage,
+                    message: '(FIRST MESSAGE - Generate welcome message)',
+                    conversationHistory: []
+                });
+            }, 300);
+        });
+
+        socket.on('error', (data) => {
+            stopLoader();
+            const msg = data?.message || 'Tuntematon virhe';
+            addMessage('incoming', `❌ ${msg}`, new Date().toLocaleTimeString('fi-FI'));
         });
         
         // Kun hahmo on luotu

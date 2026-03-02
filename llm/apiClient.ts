@@ -20,7 +20,7 @@ const ENGINE_RUNNER_CONFIG = {
 };
 
 export const MODEL = API_PROVIDER === 'openrouter' ? OPENROUTER_MODEL : OLLAMA_MODEL;
-const PROMPT_DEBUG_FILE = path.join(__dirname, '..', 'data', 'debug_prompts.json');
+const PROMPT_DEBUG_FILE = PATHS.PROMPT_DEBUG;
 
 type RuntimeLLMConfig = {
   provider: 'ollama' | 'openrouter';
@@ -58,7 +58,14 @@ function writeJSON(filePath: string, data: unknown): void {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-function logPromptDebug(promptType: string, characterName: string, prompt: string, response: string, metadata: Record<string, unknown> = {}): void {
+function logPromptDebug(
+  promptType: string,
+  characterName: string,
+  prompt: string,
+  response: string,
+  runtimeInfo: { model: string; provider: 'ollama' | 'openrouter' },
+  metadata: Record<string, unknown> = {}
+): void {
   try {
     const debugLog = readJSON(PROMPT_DEBUG_FILE);
     debugLog.push({
@@ -67,7 +74,13 @@ function logPromptDebug(promptType: string, characterName: string, prompt: strin
       characterName,
       prompt,
       response,
-      metadata: { model: MODEL, provider: API_PROVIDER, ...metadata }
+      metadata: {
+        model: runtimeInfo.model,
+        provider: runtimeInfo.provider,
+        promptLength: prompt.length,
+        responseLength: response.length,
+        ...metadata
+      }
     });
     if (debugLog.length > GAME.DEBUG_LOG_MAX_ENTRIES) debugLog.shift();
     writeJSON(PROMPT_DEBUG_FILE, debugLog);
@@ -106,6 +119,8 @@ export async function askLLM(
   characterName = 'N/A',
   metadata: Record<string, unknown> = {}
 ): Promise<string> {
+  const requestId = `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+  const startedAt = Date.now();
   try {
     let responseText = '';
     const useBuilderModel = metadata.useAnalyzerModel === true;
@@ -115,21 +130,37 @@ export async function askLLM(
       if (!runtime.openrouterApiKey) throw new Error('OpenRouter API key puuttuu! Lisää avain käyttöliittymässä tai aseta OPENROUTER_API_KEY ympäristömuuttuja.');
       const model = useBuilderModel ? WORLD_BUILDER_MODEL : runtime.model;
       const moduleName = (metadata.module as string) || promptType || 'Unknown';
-      console.log(`🌐 ${moduleName}: OpenRouter/${model}`);
+      console.log(`🌐 ${moduleName} [${requestId}]: OpenRouter/${model}`);
       responseText = await callOpenRouter(prompt, runtime.openrouterApiKey, model);
+      logPromptDebug(promptType, characterName, prompt, responseText, { model, provider: runtime.provider }, {
+        requestId,
+        module: moduleName,
+        durationMs: Date.now() - startedAt,
+        ...metadata
+      });
     } else {
       const moduleName = (metadata.module as string) || promptType || 'Unknown';
       const model = runtime.model || OLLAMA_MODEL;
-      console.log(`🤖 ${moduleName}: Ollama/${model} @ ${runtime.ollamaBaseUrl}`);
+      console.log(`🤖 ${moduleName} [${requestId}]: Ollama/${model} @ ${runtime.ollamaBaseUrl}`);
       responseText = await callOllama(prompt, model, runtime.ollamaBaseUrl);
+      logPromptDebug(promptType, characterName, prompt, responseText, { model, provider: runtime.provider }, {
+        requestId,
+        module: moduleName,
+        durationMs: Date.now() - startedAt,
+        ...metadata
+      });
     }
-
-    logPromptDebug(promptType, characterName, prompt, responseText, metadata);
     return responseText;
   } catch (error) {
     console.error(`❌ ${API_PROVIDER} error:`, (error as Error).message);
     const errorMsg = `Tekoäly vaikeni (Virhe yhteydessä: ${(error as Error).message}).`;
-    logPromptDebug(promptType, characterName, prompt, errorMsg, { error: (error as Error).message, ...metadata });
+    const runtime = resolveRuntimeLLMConfig();
+    logPromptDebug(promptType, characterName, prompt, errorMsg, { model: runtime.model, provider: runtime.provider }, {
+      requestId,
+      durationMs: Date.now() - startedAt,
+      error: (error as Error).message,
+      ...metadata
+    });
     return errorMsg;
   }
 }
