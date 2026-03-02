@@ -28,7 +28,7 @@ export async function handleTutorial(
     ? '\n\nCONVERSATION HISTORY:\n' + conversationHistory.map(m => `${m.role}: ${m.content}`).join('\n')
     : '';
 
-  const tutorialPrompt = `You are the CHARACTER CREATION assistant for a railroaded Digital LARP game.
+  const tutorialPrompt = `You are the TUTORIAL assistant for a railroaded Digital LARP game.
 GAME SETTING: ${setting}
 THEMES: ${themes}${existingCharsInfo}${storyInfo}${conversationContext}
 Player: ${playerName}
@@ -38,23 +38,39 @@ Rules:
 - Your job in this mode is ONLY character creation.
 - Ask at most one short open question at a time, only if required details are missing.
 - NEVER use multiple-choice formatting unless player explicitly requests options.
-- As soon as you have enough to create a playable character (name + concept + one motivation), call tool immediately with <TOOL_CALL>{"tool":"createCharacter","playerWishes":"..."}</TOOL_CALL>.
+- As soon as you have enough to create a playable character (name + concept + one motivation), output EXACTLY this tag:
+  <START_CHARACTER_CREATION>{"tool":"createCharacter","playerWishes":"..."}</START_CHARACTER_CREATION>
+- Never output a raw JSON object without the START_CHARACTER_CREATION tag.
 - After tool call, keep any additional text brief and supportive.
 
 Respond ${responseLanguage}.`;
 
   try {
     const response = await askLLM(tutorialPrompt, 'tutorial', playerName, { module: 'TutorialAgent' });
-    const toolCallMatch = response.match(/<TOOL_CALL>\s*(\{[^}]+\})\s*<\/TOOL_CALL>/s);
+    const toolCallMatch = response.match(/<(?:START_CHARACTER_CREATION|TOOL_CALL)>\s*(\{[\s\S]*?\})\s*<\/(?:START_CHARACTER_CREATION|TOOL_CALL)>/s);
     if (toolCallMatch) {
       try {
         const toolCall = JSON.parse(toolCallMatch[1]);
-        const textResponse = response.replace(/<TOOL_CALL>[\s\S]*<\/TOOL_CALL>/, '').trim();
+        const textResponse = response.replace(/<(?:START_CHARACTER_CREATION|TOOL_CALL)>[\s\S]*<\/(?:START_CHARACTER_CREATION|TOOL_CALL)>/, '').trim();
         return { response: textResponse || null, toolCall };
       } catch {
         return { response: response.trim(), toolCall: null };
       }
     }
+
+    // Fallback: if model emits only JSON tool call without wrapper, still accept it.
+    const jsonOnlyToolCall = response.trim().match(/^\{[\s\S]*\}$/);
+    if (jsonOnlyToolCall) {
+      try {
+        const parsed = JSON.parse(jsonOnlyToolCall[0]);
+        if (parsed?.tool === 'createCharacter') {
+          return { response: null, toolCall: parsed };
+        }
+      } catch {
+        // ignore and continue as plain text
+      }
+    }
+
     return { response: response.trim(), toolCall: null };
   } catch {
     const fallbacks: Record<string, string> = {

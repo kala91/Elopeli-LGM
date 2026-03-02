@@ -215,6 +215,7 @@
             ollamaModel: 'ministral-3:latest',
             openrouterModel: 'google/gemini-2.0-flash-exp:free'
         };
+        let totalConnectedPlayers = 0;
 
         function onLLMProviderChange() {
             const provider = document.getElementById('llm-provider-select').value;
@@ -535,7 +536,9 @@
         // Update player count when characters change
         function updatePlayerCount() {
             const chars = document.querySelectorAll('#characters-list .character-item');
-            document.getElementById('player-count').textContent = chars.length;
+            const activeCharacters = chars.length;
+            const visibleCount = Math.max(totalConnectedPlayers, activeCharacters);
+            document.getElementById('player-count').textContent = visibleCount;
         }
 
         // Update phase display in overview
@@ -703,6 +706,11 @@
             console.log('👤 Player joined (awaiting character):', player.playerName);
             showLLMActivity(`${player.playerName} liittyi peliin (hahmoa luodaan)`);
             setTimeout(hideLLMActivity, 2000);
+        });
+
+        socket.on('player_roster_updated', (roster) => {
+            totalConnectedPlayers = Number(roster?.totalPlayers) || 0;
+            updatePlayerCount();
         });
 
         socket.on('character_created', (data) => {

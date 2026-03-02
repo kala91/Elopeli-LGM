@@ -4,7 +4,8 @@ export async function createCharacterAgent(
   gameConfig: any,
   language = 'fi',
   askLLM: (prompt: string, promptType?: string, characterName?: string, metadata?: Record<string, unknown>) => Promise<string>,
-  characterWishes = ''
+  characterWishes = '',
+  tutorialConversation: Array<{ role: string; content: string }> = []
 ): Promise<any> {
   const existingCharsContext = existingCharacters?.length
     ? '\n\n## EXISTING CHARACTERS\n' + existingCharacters.map(c => `- ${c.name}: ${c.description || 'character in game'}`).join('\n')
@@ -13,7 +14,11 @@ export async function createCharacterAgent(
     ? `\n\n## PLAYER WISHES\n${characterWishes}`
     : '';
 
-  const prompt = `Create character JSON for player ${playerName}.\nSetting: ${gameConfig.setting}\nThemes: ${(gameConfig.themes || []).join(', ')}\nRelationships: ${(gameConfig.availableRelationships || []).join(', ')}${existingCharsContext}${wishesContext}\nLanguage: ${language}. Return ONLY JSON with description, personality[], goals[], relationships[]. Description must be markdown-formatted with short paragraphs and bullet points (not one text block).`;
+  const tutorialConversationContext = tutorialConversation?.length
+    ? '\n\n## TUTORIAL CONVERSATION (MOST IMPORTANT CONTEXT)\n' + tutorialConversation.map(msg => `- ${msg.role}: ${msg.content}`).join('\n')
+    : '';
+
+  const prompt = `Create character JSON for player ${playerName}.\nSetting: ${gameConfig.setting}\nThemes: ${(gameConfig.themes || []).join(', ')}\nRelationships: ${(gameConfig.availableRelationships || []).join(', ')}${existingCharsContext}${wishesContext}${tutorialConversationContext}\nLanguage: ${language}.\n\nRequirements:\n- Keep the character strictly consistent with PLAYER WISHES and TUTORIAL CONVERSATION.\n- Do not invent a contradictory archetype.\n- Return ONLY JSON with description, personality[], goals[], relationships[]. Description must be markdown-formatted with short paragraphs and bullet points (not one text block).`;
 
   try {
     const response = await askLLM(prompt, 'character_generation', playerName, { module: 'CharacterCreatorAgent' });
