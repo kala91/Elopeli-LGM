@@ -10,7 +10,10 @@ export const PATHS = {
     STORY_RECENT: path.join(DATA_DIR, 'story_recent.json'),
     CHARACTERS_DIR: path.join(DATA_DIR, 'characters'),
     PROMPT_DEBUG: path.join(DATA_DIR, 'debug_prompts.json'),
-    GAME_LIBRARY: path.join(DATA_DIR, 'game_library')
+    GAME_LIBRARY: path.join(DATA_DIR, 'game_library'),
+    MOCK_LLM_INPUT: path.join(DATA_DIR, 'mock_llm_last_prompt.txt'),
+    MOCK_LLM_RESPONSES: path.join(DATA_DIR, 'mock_llm_responses.json'),
+    MOCK_LLM_STATE: path.join(DATA_DIR, 'mock_llm_state.json')
 };
 
 export const GAME = {

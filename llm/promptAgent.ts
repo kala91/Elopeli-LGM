@@ -34,7 +34,8 @@ const SYSTEM_PROMPT = `You are a digital dramaturg for railroaded live roleplay.
 Generate exactly one concrete instruction for this player.
 Do NOT ask the player what they do next.
 Do NOT output multiple-choice alternatives.
-The player acts in real life with other humans.`;
+The player acts in real life with other humans.
+If you introduce a new concrete physical item not explicitly in the setting context, mark it clearly with prefix [UUSI REKVISIITTA].`;
 
 export async function buildActionPrompt(
   character: any,
@@ -62,8 +63,13 @@ Character memory:
 ${memoryContext}
 Other characters:
 ${others || '- none yet'}
+Physical props guidance: ${gameConfig.physicalPropsGuidance || 'No special guidance'}
 Recent:
 ${recentHistory || 'Game just started.'}
+
+Important constraints:
+- Do not assume non-existing real-world props as already present.
+- If a new physical item is dramaturgically needed, format it as [UUSI REKVISIITTA] Item name: brief creation/use hint.
 
 Return ONLY JSON in this exact shape:
 {

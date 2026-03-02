@@ -664,3 +664,25 @@ await agent.cleanup();
 - [llm/promptAgent.js](llm/promptAgent.js) - Sisältää inline dramaturgi-promptin
 - [docs/taxonomy.md](docs/taxonomy.md) - Dramaturgiset työvälineet (analyyttinen muistikirja)
 - [data/game_library/murhapeli.md](data/game_library/murhapeli.md) - Esimerkki pelitemplaatista
+
+
+## 🧪 MockFile test flow (agenttiystävällinen)
+
+Projektissa on sisäänrakennettu **MockFile-provider**, jotta myös kielimallit voivat testata koko arkkitehtuurin ilman ulkoista LLM:ää.
+
+- Provider: `mockfile`
+- Prompt input dump: `data/mock_llm_last_prompt.txt`
+- Mock responses: `data/mock_llm_responses.json`
+- Sequence state: `data/mock_llm_state.json`
+- Human-in-the-loop UI: `http://localhost:3000/mockllm.html`
+
+**Miksi tämä on tärkeää kehittäjäagenteille:**
+- Voit ajaa multi-client flow-testit lokaalisti ja deterministisesti.
+- Voit varmistaa, että prompt-agentti saa oikeasti `Other characters` + `Recent` + muistisisällön ennen prompt engineering -iterointia.
+- Ei tarvetta kutsua ulkoisia rajapintoja arkkitehtuurin perusvalidointiin.
+
+**Suositus kehityksessä:**
+1. Käynnistä peli GM-näkymässä providerilla `mockfile`.
+2. Syötä mock-vastaukset `mockllm.html`-sivulla.
+3. Aja 2–3 pelaajan kierrostesti.
+4. Tarkista `data/debug_prompts.json` että scene_generation-promptit sisältävät muiden hahmojen ja recent storyn kontekstin.

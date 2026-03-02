@@ -342,3 +342,17 @@ npm run dev  # Käyttää Node.js --watch flagia
 - Lue [ARCHITECTURE.md](ARCHITECTURE.md) ymmärtääksesi järjestelmän rakenteen
 - Katso [data/game_library/](data/game_library/) luodaksesi oman pelin
 - Lue [data/systemprompt.md](data/systemprompt.md) ymmärtääksesi dramaturgia-promptit
+
+
+## MockFile kehittäjätestaus (ilman ulkoista LLM:ää)
+
+Kun haluat testata flowta nopeasti tai agenttina ilman oikeaa LLM-kutsua:
+
+1. Valitse GM UI:ssa provideriksi `MockFile (testisimulaattori)`.
+2. Avaa `http://localhost:3000/mockllm.html`.
+3. Lisää `byPromptType`-vastaukset JSON:na (`tutorial`, `character_generation`, `scene_generation`).
+4. Aja pelaajaflow normaalisti playerclientillä.
+5. Tarkista promptikontekstit `data/debug_prompts.json`-tiedostosta.
+
+Tämä on suositeltu tapa varmistaa arkkitehtuurin toiminta ennen prompt engineering -nyanssien säätöä.
+

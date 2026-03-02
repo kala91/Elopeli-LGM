@@ -32,3 +32,8 @@ dist/
 # Temporary files
 tmp/
 temp/
+
+# Mock LLM simulator runtime files
+data/mock_llm_last_prompt.txt
+data/mock_llm_responses.json
+data/mock_llm_state.json
