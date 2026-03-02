@@ -54,6 +54,13 @@ export async function buildActionPrompt(
     .join('\n');
 
   const memoryContext = JSON.stringify(character.memory || { key_moments: [], relationships: {} }, null, 2);
+  const gameConfigSnapshot = JSON.stringify({
+    setting: gameConfig.setting || '',
+    currentPhase: gameConfig.currentPhase || null,
+    themes: gameConfig.themes || [],
+    availableRelationships: gameConfig.availableRelationships || [],
+    physicalPropsGuidance: gameConfig.physicalPropsGuidance || ''
+  }, null, 2);
 
   const prompt = `${SYSTEM_PROMPT}
 Setting: ${gameConfig.setting}
@@ -64,6 +71,8 @@ ${memoryContext}
 Other characters:
 ${others || '- none yet'}
 Physical props guidance: ${gameConfig.physicalPropsGuidance || 'No special guidance'}
+Game config JSON snapshot:
+${gameConfigSnapshot}
 Recent:
 ${recentHistory || 'Game just started.'}
 

@@ -38,6 +38,13 @@ let storyEntryCount = 0;
 
 const connectedPlayers: Record<string, { playerName: string; language: string; joinedAt: string; hasCharacter: boolean }> = {};
 
+function extractTemplateSection(markdown: string, heading: string): string {
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sectionRegex = new RegExp(`^##\\s+${escapedHeading}\\s*$([\\s\\S]*?)(?=^##\\s+|\\Z)`, 'im');
+  const match = markdown.match(sectionRegex);
+  return match?.[1]?.trim() || '';
+}
+
 app.use(express.static('public'));
 app.use(express.json());
 
@@ -266,6 +273,18 @@ io.on('connection', socket => {
     console.log(`📡 socket:${socket.id} ${eventName}#${eventCounters[eventName]}`, context);
   }
 
+  function emitPlayerFlowPhase(
+    targetSocket: any,
+    phase: 'tutorial' | 'character_creation' | 'game_running' | 'post_game',
+    message: string
+  ): void {
+    targetSocket.emit('player_flow_phase', {
+      phase,
+      message,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   socket.on('gm_initialize', async (config: any) => {
     try {
       let setting = config.setting || '';
@@ -278,12 +297,14 @@ io.on('connection', socket => {
       if (templateToLoad && shouldLoadTemplate) {
         const templateFile = path.join(GAME_LIBRARY_DIR, templateToLoad.endsWith('.md') ? templateToLoad : `${templateToLoad}.md`);
         const templateContent = fs.readFileSync(templateFile, 'utf8');
-        setting = templateContent.match(/## Setting\s+([^#]+)/)?.[1]?.trim() || setting;
-        const rel = templateContent.match(/## Available Relationships\s+([^\n#]+)/)?.[1];
-        if (rel) availableRelationships = rel.split(',').map(r => r.trim());
-        const tm = templateContent.match(/## Themes\s+([^\n#]+)/)?.[1];
-        if (tm) themes = tm.split(',').map(t => t.trim());
-        physicalPropsGuidance = templateContent.match(/## Physical Props Guidance\s+([^#]+)/)?.[1]?.trim() || physicalPropsGuidance;
+        const templateSetting = extractTemplateSection(templateContent, 'Setting');
+        const templateSecrets = extractTemplateSection(templateContent, 'Secrets');
+        setting = [templateSetting, templateSecrets ? `## Secrets\n\n${templateSecrets}` : ''].filter(Boolean).join('\n\n') || setting;
+        const rel = extractTemplateSection(templateContent, 'Available Relationships').split(',').map(r => r.trim()).filter(Boolean);
+        if (rel.length) availableRelationships = rel;
+        const tm = extractTemplateSection(templateContent, 'Themes').split(',').map(t => t.trim()).filter(Boolean);
+        if (tm.length) themes = tm;
+        physicalPropsGuidance = extractTemplateSection(templateContent, 'Physical Props Guidance') || physicalPropsGuidance;
       }
 
       const provider = config.llm?.provider === 'openrouter' ? 'openrouter' : config.llm?.provider === 'mockfile' ? 'mockfile' : 'ollama';
@@ -338,6 +359,7 @@ io.on('connection', socket => {
       connectedPlayers[socket.id] = { playerName, language, joinedAt, hasCharacter: false };
 
       socket.emit('join_ack', { success: true, playerName, language });
+      emitPlayerFlowPhase(socket, 'tutorial', 'Tutoriaali käynnissä');
       io.emit('player_joined', {
         playerName,
         language,
@@ -403,6 +425,7 @@ io.on('connection', socket => {
         tutorialHistoryCount: data?.tutorialHistory?.length || 0
       });
       const { playerName, language, tutorialHistory, playerWishes } = data;
+      emitPlayerFlowPhase(socket, 'character_creation', 'Hahmon luonti käynnissä');
       const charId = playerName.toLowerCase().replace(/\s+/g, '_');
       if (loadCharacter(charId)) return socket.emit('error', { message: 'Character already exists' });
       const gameConfig = loadGameConfig();
@@ -421,6 +444,7 @@ io.on('connection', socket => {
       const character: any = { id: charId, name: playerName, ...generated, status: 'active', memory: { key_moments: [], relationships: {} }, playerMeta: { language: language || 'fi', joinedAt: new Date().toISOString(), sessionCount: 1 } };
       saveCharacter(charId, character);
       socket.emit('character_created', { character });
+      emitPlayerFlowPhase(socket, 'game_running', 'Peli käynnissä');
       if (connectedPlayers[socket.id]) {
         connectedPlayers[socket.id].hasCharacter = true;
       }
@@ -442,7 +466,7 @@ io.on('connection', socket => {
       const character = loadCharacter(data.charId);
       if (!character) return socket.emit('error', { message: ERROR_MESSAGES.CHARACTER_NOT_FOUND });
       const newEntry = { id: Date.now(), timestamp: new Date().toLocaleTimeString('fi-FI'), targetChar: character.name, targetId: character.id, instruction: `[PELAAJAN TOIMINTA] ${data.action}`, playerJoined: false, playerSubmitted: true };
-      appendToRecentStory(newEntry); storyEntryCount++; io.emit('story_update', newEntry); setImmediate(() => processMemoryExtraction(newEntry)); socket.emit('action_received', { success: true });
+      appendToRecentStory(newEntry); storyEntryCount++; io.emit('story_update', newEntry); socket.emit('action_received', { success: true });
     } catch {
       socket.emit('error', { message: ERROR_MESSAGES.FAILED_TO_SUBMIT_ACTION });
     }

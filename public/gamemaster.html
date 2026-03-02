@@ -266,6 +266,13 @@
             }
         }
 
+        function extractTemplateSection(content, heading) {
+            const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const sectionRegex = new RegExp(`^##\\s+${escaped}\\s*$([\\s\\S]*?)(?=^##\\s+|\\Z)`, 'im');
+            const match = content.match(sectionRegex);
+            return match ? match[1].trim() : '';
+        }
+
         // Lataa valittu pelitemplaatti
         async function loadSelectedTemplate() {
             const templateId = document.getElementById('template-selector').value;
@@ -282,28 +289,27 @@
                 const data = await response.json();
                 
                 // Parse markdown content
-                const content = data.content;
-                
-                // Parse Setting
-                const settingMatch = content.match(/## Setting\s+([^#]+)/);
-                const setting = settingMatch ? settingMatch[1].trim() : '';
-                
-                // Parse Themes
-                const themesMatch = content.match(/## Themes\s+([^\n#]+)/);
-                const themes = themesMatch ? themesMatch[1].trim() : '';
-                
-                // Parse Relationships
-                const relMatch = content.match(/## Available Relationships\s+([^\n#]+)/);
-                const relationships = relMatch ? relMatch[1].trim() : '';
-                
-                // Parse Physical Props
-                const propsMatch = content.match(/## Physical Props Guidance\s+([^#]+)/);
-                const props = propsMatch ? propsMatch[1].trim() : '';
-                
-                // Update UI fields
-                document.getElementById('world-setting').value = 
-                    `${setting}\n\nTeemat: ${themes}\nSuhteet: ${relationships}\nFyysiset rekvisiitta: ${props}`;
-                
+                const content = data.content || '';
+                const setting = extractTemplateSection(content, 'Setting');
+                const themes = extractTemplateSection(content, 'Themes');
+                const relationships = extractTemplateSection(content, 'Available Relationships');
+                const props = extractTemplateSection(content, 'Physical Props Guidance');
+                const secrets = extractTemplateSection(content, 'Secrets');
+
+                // Näytä koko skenaario (ei vain osia), mutta täydennä tarvittaessa puuttuvat osiot
+                const fullScenario = content.trim() || [
+                    '## Setting', setting,
+                    '',
+                    '## Available Relationships', relationships,
+                    '',
+                    '## Physical Props Guidance', props,
+                    '',
+                    '## Themes', themes,
+                    secrets ? `\n## Secrets\n${secrets}` : ''
+                ].filter(Boolean).join('\n');
+
+                document.getElementById('world-setting').value = fullScenario;
+
                 console.log('✅ Template ladattu:', data.id);
             } catch (error) {
                 console.error('❌ Virhe ladattaessa pelitemplaattia:', error);

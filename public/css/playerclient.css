@@ -104,6 +104,23 @@
             opacity: 0;
             overflow: hidden;
         }
+        .flow-pill {
+            display: inline-block;
+            align-self: flex-start;
+            margin: 6px 0 10px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid #0f0;
+            background: #062006;
+            color: #9bff9b;
+            font-size: 0.75rem;
+            letter-spacing: 0.02em;
+        }
+        .flow-pill[data-phase="character_creation"] {
+            border-color: #0ff;
+            color: #c9ffff;
+            background: #06222a;
+        }
         
         /* Markdown-tyylit hahmokuvauksessa ja viesteissä */
         #character-info strong, .message .content strong {
