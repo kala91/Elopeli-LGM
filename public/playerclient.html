@@ -353,6 +353,7 @@
         // Kun hahmo on luotu
         socket.on('character_created', (data) => {
             const charData = data.character;
+            if (!charData || !charData.name || charData.name !== playerName) return;
             myCharId = charData.id;
             inTutorial = false; // Varmista että tutorial mode pois päältä
             tutorialHistory = []; // Varmista että historia tyhjä
@@ -470,7 +471,8 @@
         // Alkusynkkaus (palauta historia jos refreshataan)
         socket.on('sync_state', (data) => {
             if (myCharId) {
-                data.story.filter(entry => entry.targetId === myCharId).forEach(entry => {
+                const entries = data.story?.entries || [];
+                entries.filter(entry => entry.targetId === myCharId).forEach(entry => {
                     const type = entry.playerSubmitted ? 'outgoing' : 'incoming';
                     addMessage(type, entry.instruction.replace('[PELAAJAN TOIMINTA] ', ''), entry.timestamp);
                 });
