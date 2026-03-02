@@ -38,6 +38,13 @@ let storyEntryCount = 0;
 
 const connectedPlayers: Record<string, { playerName: string; language: string; joinedAt: string; hasCharacter: boolean }> = {};
 
+function extractTemplateSection(markdown: string, heading: string): string {
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sectionRegex = new RegExp(`^##\\s+${escapedHeading}\\s*$([\\s\\S]*?)(?=^##\\s+|\\Z)`, 'im');
+  const match = markdown.match(sectionRegex);
+  return match?.[1]?.trim() || '';
+}
+
 app.use(express.static('public'));
 app.use(express.json());
 
@@ -290,12 +297,14 @@ io.on('connection', socket => {
       if (templateToLoad && shouldLoadTemplate) {
         const templateFile = path.join(GAME_LIBRARY_DIR, templateToLoad.endsWith('.md') ? templateToLoad : `${templateToLoad}.md`);
         const templateContent = fs.readFileSync(templateFile, 'utf8');
-        setting = templateContent.match(/## Setting\s+([^#]+)/)?.[1]?.trim() || setting;
-        const rel = templateContent.match(/## Available Relationships\s+([^\n#]+)/)?.[1];
-        if (rel) availableRelationships = rel.split(',').map(r => r.trim());
-        const tm = templateContent.match(/## Themes\s+([^\n#]+)/)?.[1];
-        if (tm) themes = tm.split(',').map(t => t.trim());
-        physicalPropsGuidance = templateContent.match(/## Physical Props Guidance\s+([^#]+)/)?.[1]?.trim() || physicalPropsGuidance;
+        const templateSetting = extractTemplateSection(templateContent, 'Setting');
+        const templateSecrets = extractTemplateSection(templateContent, 'Secrets');
+        setting = [templateSetting, templateSecrets ? `## Secrets\n\n${templateSecrets}` : ''].filter(Boolean).join('\n\n') || setting;
+        const rel = extractTemplateSection(templateContent, 'Available Relationships').split(',').map(r => r.trim()).filter(Boolean);
+        if (rel.length) availableRelationships = rel;
+        const tm = extractTemplateSection(templateContent, 'Themes').split(',').map(t => t.trim()).filter(Boolean);
+        if (tm.length) themes = tm;
+        physicalPropsGuidance = extractTemplateSection(templateContent, 'Physical Props Guidance') || physicalPropsGuidance;
       }
 
       const provider = config.llm?.provider === 'openrouter' ? 'openrouter' : config.llm?.provider === 'mockfile' ? 'mockfile' : 'ollama';
