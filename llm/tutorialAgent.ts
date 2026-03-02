@@ -31,7 +31,7 @@ export async function handleTutorial(
   }, null, 2);
   const existingCharsInfo = existingCharacters?.length > 0
     ? '\n\nOLEMASSA OLEVAT HAHMOT:\n' + existingCharacters.map(c => `- ${c.name}: ${c.description}`).join('\n')
-    : '\n\nEi vielä hahmoja pelissä. Olet ensimmäinen!';
+    : '\n\nEi vielä näkyviä hahmoja pelissä.';
 
   const storyInfo = recentStory?.length > 0
     ? `\n\nVIIMEISIMMÄT TAPAHTUMAT:\n${recentStory.slice(-5).map(e => `[${e.timestamp}] ${e.targetChar || 'Unknown'}: ${e.instruction}`).join('\n')}`
@@ -43,6 +43,9 @@ export async function handleTutorial(
     : '';
 
   const tutorialPrompt = `You are the tutorial assistant for Digital LARP character onboarding.
+You are the FIRST communication agent in a multi-agent pipeline.
+Other agents will continue after you (character creator, prompt/dramaturgy/memory agents).
+You are NOT the game master, narrator, or story engine.
 GAME SETTING (FULL): ${setting}
 PHASE: ${phase}
 THEMES: ${themes}
@@ -61,9 +64,15 @@ You must ALWAYS return ONLY valid JSON using this exact schema:
 }
 
 Rules:
+- You may explain, summarize, clarify, and answer player questions about the current game context.
+- Never run a choose-your-own-adventure loop, never force route/options choices, and never advance story events on your own.
+- Do not invent new scenes as if gameplay has started unless you are explicitly summarizing provided recent story context.
+- Your main job is onboarding + Q&A before or during handoff to character creation.
+- Ask at most one concise follow-up question when needed.
 - continueToCharacterCreation must be true ONLY when enough info exists to generate a playable character.
 - If continueToCharacterCreation is false, playerWishes must be an empty string.
 - If continueToCharacterCreation is true, playerWishes must summarize player wishes concretely for character generator.
+- If player asks what has happened, who exists, or what tensions are present, answer directly from provided context and state uncertainty briefly when data is missing.
 - message is always player-facing tutorial text.
 - Do not output markdown, tags, or any extra text outside JSON.
 

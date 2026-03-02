@@ -84,6 +84,7 @@
         const socket = io();
         let myCharId = null;
         let myName = null;
+        let expectedCharId = null;
         let loaderInterval = null;
         let loadingMessageId = null;
 
@@ -174,6 +175,7 @@
             
             playerName = name;
             playerLanguage = language;
+            expectedCharId = name.toLowerCase().replace(/\s+/g, '_');
             tutorialHistory = []; // Nollaa historia uudelle pelaajalle
             characterCreationInProgress = false;
             setFlowPhase('waiting', 'Liitytään peliin');
@@ -395,7 +397,13 @@
         // Kun hahmo on luotu
         socket.on('character_created', (data) => {
             const charData = data.character;
-            if (!charData || !charData.name || charData.name !== playerName) return;
+            if (!charData || !charData.id) return;
+
+            const expectedId = expectedCharId || (playerName || '').toLowerCase().replace(/\s+/g, '_');
+            const idMatches = charData.id === expectedId;
+            const nameMatches = typeof charData.name === 'string' && charData.name.trim() === playerName;
+            if (!idMatches && !nameMatches) return;
+
             myCharId = charData.id;
             inTutorial = false; // Varmista että tutorial mode pois päältä
             tutorialHistory = []; // Varmista että historia tyhjä
