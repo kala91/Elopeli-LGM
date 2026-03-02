@@ -234,13 +234,16 @@ The Game Master can update phases manually during play.
 
 ---
 
-## Contributing Templates
+## Template Workflow (Project Internal)
 
-If you create a great template:
-1. Test it thoroughly with players
-2. Document player count and duration
+This repository is currently maintained as a one-person research project.
+Template work is mainly for the author and AI coding agents supporting the project.
+
+When adding or editing a template:
+1. Test it with players (or a dry-run simulation)
+2. Document player count and duration assumptions
 3. Include setup notes if needed
-4. Share with the community!
+4. Record what dramaturgical hypothesis the template is testing
 
 ---
 
