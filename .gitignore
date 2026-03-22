@@ -1,8 +1,10 @@
 # Dependencies
 node_modules/
 
-# Environment variables
+# Environment variables / secrets
 .env
+.env.*
+!.env.example
 
 # Runtime data files (generated during gameplay)
 data/story_recent.json
