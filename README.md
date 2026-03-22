@@ -26,7 +26,7 @@ npm install
 
 ### 2) Määritä kielimallipalvelu
 
-Luo `.env`-tiedosto:
+Luo `.env`-tiedosto (tai kopioi `.env.example`) ja lisää oma API-avain:
 
 ```bash
 # OpenRouter (pilvi)
@@ -39,6 +39,8 @@ API_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=gemma2
 ```
+
+> ⚠️ Turvallisuus: älä koskaan commitoi `.env`-tiedostoa tai oikeita API-avaimia. Jos avain on päätynyt julkiseen repoon, peruuta (revoke) se välittömästi palveluntarjoajalta ja luo uusi avain.
 
 
 ### MockFile testisimulaattori (MVP-flow testaukseen)
